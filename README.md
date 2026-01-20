@@ -83,6 +83,42 @@ myhomeserver/
 └── shared/               # Shared types/config
 ```
 
+## 🔗 MCP Server Integrations
+
+MyHomeServer integrates with multiple MCP servers for comprehensive smart home control. See [MCP Integrations Documentation](docs/integrations/README.md) for detailed setup and usage guides.
+
+### Core MCP Servers
+
+| Server | Purpose | Repository | Port |
+|--------|---------|------------|------|
+| **Tapo Camera MCP** | Cameras & Energy | `tapo-camera-mcp` | 7778 |
+| **Netatmo MCP** | Weather & Sensors | `netatmo-mcp` | 7780 |
+| **Ring MCP** | Security Systems | `ring-mcp` | 7782 |
+| **Home Assistant MCP** | Smart Home Hub | `home-assistant-mcp` | 7784 |
+| **Local LLM MCP** | AI Intelligence | `local-llm-mcp` | 7786 |
+
+### Unified API Endpoints
+
+MyHomeServer provides a unified API that aggregates data from all MCP servers:
+
+```python
+# Dashboard & Overview
+GET  /api/dashboard          # System overview
+
+# Device Management
+GET  /api/cameras            # Camera management
+GET  /api/energy             # Energy monitoring
+GET  /api/weather            # Weather data
+GET  /api/security           # Security systems
+GET  /api/devices            # All smart devices
+
+# AI & Automation
+POST /api/voice/command      # Voice commands
+GET  /api/ai/insights        # AI insights
+GET  /api/ai/suggestions     # Automation suggestions
+POST /api/ai/automation      # Create automations
+```
+
 ## 🚀 Development Roadmap
 
 ### Phase 1: Foundation (Week 1)
