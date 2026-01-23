@@ -416,7 +416,7 @@ class MCPClientManager:
     async def health_check(self, server_name: str) -> bool:
         """Check if an MCP server is healthy."""
         try:
-            # Only check health for servers that are already running or configured to auto-start
+            # Only check health for servers that are already running
             config = self.server_configs.get(server_name, {})
             auto_start = config.get("auto_start", True)
 
@@ -424,10 +424,21 @@ class MCPClientManager:
             if not auto_start and server_name not in self.clients:
                 return False
 
-            client = await self.get_client(server_name)
-            # Simple health check - try to list tools
-            await client.list_tools()
-            return True
+            # If server is running, check if it's actually healthy
+            if server_name in self.clients:
+                client = self.clients[server_name]
+                if client.initialized:
+                    # Simple health check - try to list tools
+                    await client.list_tools()
+                    return True
+                else:
+                    return False
+
+            # For now, don't auto-start servers during health checks
+            # They will be started manually when configurations are verified
+            return False
+
+            return False
         except Exception:
             return False
 
@@ -437,32 +448,37 @@ class MCPClientManager:
         for name, config in self.server_configs.items():
             try:
                 auto_start = config.get("auto_start", True)
-                healthy = await self.health_check(name)
                 client = self.clients.get(name)
 
-                # For servers not configured to auto-start, show status without trying to start them
-                if not auto_start and not healthy:
-                    result[name] = {
-                        "healthy": False,
-                        "command": config["command"],
-                        "tools_count": 0,
-                        "resources_count": 0,
-                        "prompts_count": 0,
-                        "status": "not_started"
-                    }
+                # For servers that are running, check their health
+                if client and client.initialized:
+                    try:
+                        # Simple health check - try to list tools
+                        await client.list_tools()
+                        healthy = True
+                    except:
+                        healthy = False
+                elif auto_start:
+                    # For servers configured to auto-start but not running, mark as not started
+                    healthy = False
                 else:
-                    result[name] = {
-                        "healthy": healthy,
-                        "command": config["command"],
-                        "tools_count": len(client.available_tools) if client else 0,
-                        "resources_count": len(client.available_resources) if client else 0,
-                        "prompts_count": len(client.available_prompts) if client else 0,
-                    }
+                    # For servers not configured to auto-start
+                    healthy = False
+
+                result[name] = {
+                    "healthy": healthy,
+                    "command": config["command"],
+                    "tools_count": len(client.available_tools) if client and client.initialized else 0,
+                    "resources_count": len(client.available_resources) if client and client.initialized else 0,
+                    "prompts_count": len(client.available_prompts) if client and client.initialized else 0,
+                    "status": "running" if client and client.initialized else ("not_started" if not auto_start else "starting_failed")
+                }
             except Exception as e:
                 result[name] = {
                     "healthy": False,
                     "command": config["command"],
-                    "error": str(e)
+                    "error": str(e),
+                    "status": "error"
                 }
 
         return result
