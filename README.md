@@ -301,39 +301,39 @@ npm run dev:full
 ### Quick Start
 
 #### Option 1: Full Ecosystem (Recommended)
-```bash
+```powershell
 # Start everything with one command
 .\start-all.ps1
 # Choose option 3 to start both MyHomeServer services
 
-# Test MCP functionality
-npm run test:mcp
-
-# Test physical device integration (requires devices)
-npm run test:devices
+# Or start individual services:
+.\start-all.ps1
+# Choose option 1 for backend only
+# Choose option 2 for frontend only
 ```
 
 #### Option 2: Manual Setup
-```bash
-# Start MCP servers first (from d:\Dev\repos)
-cd ../tapo-camera-mcp
-python -m tapo_camera_mcp.server
-
-cd ../ring-mcp
-python -m ring_mcp.server
-
-# Then start MyHomeServer
-cd myhomeserver
+```powershell
+# Backend setup
 cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 python start.py
 
-# Frontend (new terminal)
-cd ../frontend
+# Frontend setup (new terminal)
+cd frontend
 npm install
 npm run dev
+```
+
+#### Option 3: Development with MCP Servers
+```powershell
+# First start MCP servers (from d:\Dev\repos)
+cd ../tapo-camera-mcp
+python -m tapo_camera_mcp.server
+
+# Then start MyHomeServer as above
 ```
 
 ### Environment Configuration
@@ -354,9 +354,9 @@ LOCAL_LLM_URL=http://localhost:7784
 
 ### Access Points
 - **Frontend**: http://localhost:5173 (Vite dev server)
-- **Backend API**: http://localhost:11111
-- **API Documentation**: http://localhost:11111/docs
-- **Health Check**: http://localhost:11111/health
+- **Backend API**: http://localhost:10500
+- **API Documentation**: http://localhost:10500/docs
+- **Health Check**: http://localhost:10500/health
 
 ### Development Workflow
 

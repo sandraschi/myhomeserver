@@ -30,9 +30,9 @@ $mcpServers = @(
 )
 
 # MyHomeServer ports
-$myHomePorts = @(11111, 5173)
+$myHomePorts = @(10500, 5173)
 $myHomeServers = @(
-    @{Name="MyHomeServer Backend"; Port=11111; Service="backend"},
+    @{Name="MyHomeServer Backend"; Port=10500; Service="backend"},
     @{Name="MyHomeServer Frontend"; Port=5173; Service="frontend"}
 )
 
@@ -74,6 +74,10 @@ $choice = Read-Host "Enter your choice (1-5)"
 switch ($choice) {
     "1" {
         Write-Host "🚀 Starting MyHomeServer Backend..." -ForegroundColor Green
+        Write-Host "API will be available at: http://localhost:10500" -ForegroundColor Cyan
+        Write-Host "API Documentation at: http://localhost:10500/docs" -ForegroundColor Cyan
+        Write-Host "Health check at: http://localhost:10500/health" -ForegroundColor Cyan
+        Write-Host ""
         Set-Location backend
         python start.py
     }
@@ -111,10 +115,17 @@ switch ($choice) {
         Write-Host "🔍 System Status Check Complete" -ForegroundColor Green
         Write-Host ""
         Write-Host "Summary:" -ForegroundColor Cyan
-        Write-Host "- Backend API: http://localhost:8000" -ForegroundColor White
-        Write-Host "- API Docs: http://localhost:8000/docs" -ForegroundColor White
+        Write-Host "- Backend API: http://localhost:10500" -ForegroundColor White
+        Write-Host "- API Docs: http://localhost:10500/docs" -ForegroundColor White
         Write-Host "- Frontend: http://localhost:5173" -ForegroundColor White
-        Write-Host "- Health Check: http://localhost:8000/health" -ForegroundColor White
+        Write-Host "- Health Check: http://localhost:10500/health" -ForegroundColor White
+        Write-Host ""
+        Write-Host "MCP Server Ports:" -ForegroundColor Yellow
+        Write-Host "- Tapo Camera MCP: http://localhost:7778" -ForegroundColor White
+        Write-Host "- Netatmo Weather MCP: http://localhost:7781" -ForegroundColor White
+        Write-Host "- Ring Security MCP: http://localhost:7782" -ForegroundColor White
+        Write-Host "- Home Assistant MCP: http://localhost:7783" -ForegroundColor White
+        Write-Host "- Local LLM MCP: http://localhost:7784" -ForegroundColor White
     }
     default {
         Write-Host "❌ Invalid choice. Please run the script again." -ForegroundColor Red
