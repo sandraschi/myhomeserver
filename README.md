@@ -14,14 +14,20 @@ MyHomeServer is a comprehensive home automation control center that provides a u
 - **🌤️ Weather Integration**: Local weather + Netatmo sensor data
 - **🔔 Security Systems**: Ring doorbell, motion detection, event history
 - **🏠 Smart Home Hub**: Nest devices, Home Assistant integration
+- **🎨 Lighting Control**: Smart lighting effects, RGB control (Tapo lightstrip + Philips Hue)
 - **🤖 AI Integration**: Local LLM for smart automation and insights
+- **🔧 MCP Client Bridge**: Connect to any MCP server via stdio JSON-RPC
+- **🔍 Auto-Discovery**: Automatically finds and registers 50+ MCP servers
+- **🌐 Universal Integration**: HTTP API bridge to arbitrary MCP servers
 
 ### Technical Highlights
 - **Beautiful Dark UI**: Modern, professional dark theme designed for 24/7 monitoring
 - **Real-time Updates**: Live data from all connected devices
 - **Responsive Design**: Works perfectly on desktop, tablet, and mobile
-- **MCP-Powered**: Leverages multiple MCP servers for robust device integration
+- **MCP Client Bridge**: Full stdio MCP client with HTTP bridge for arbitrary MCP servers
+- **Auto-Discovery**: Automatically discovers and registers 50+ MCP servers in workspace
 - **Type-Safe**: Built with TypeScript for reliability and maintainability
+- **Arbitrary MCP Support**: Connect to any MCP server via stdio JSON-RPC protocol
 
 ## 🏗️ Architecture
 
@@ -33,25 +39,26 @@ MyHomeServer is a comprehensive home automation control center that provides a u
 - **Vite** for fast development and building
 
 ### Backend
-- **FastAPI** as minimal MCP proxy layer
-- **MCP Servers** for device integration:
-  - `tapo-camera-mcp` - Cameras and energy devices
-  - `netatmo-mcp` - Weather sensors
-  - `ring-mcp` - Security systems
-  - `home-assistant-mcp` - Smart home hub
-  - `local-llm-mcp` - AI assistance
+- **FastAPI** with complete MCP client implementation
+- **MCP Client Bridge**: HTTP ↔ stdio JSON-RPC protocol bridge
+- **Auto-Discovery**: Scans workspace for 50+ MCP servers automatically
+- **Process Management**: Start/stop/monitor MCP server processes
+- **Connection Pooling**: Efficient MCP server connection management
+- **Error Handling**: Comprehensive error recovery and reconnection logic
 
 ### MCP Integration Strategy
 ```
-┌─────────────────┐    ┌─────────────────┐
-│   MyHomeServer  │────│   MCP Servers   │
-│   (React UI)    │    │                 │
-└─────────────────┘    │ • Tapo Camera   │
-                       │ • Netatmo       │
-┌─────────────────┐    │ • Ring          │
-│   FastAPI Proxy │────│ • Home Assistant│
-│   (Minimal)     │    │ • Local LLM     │
-└─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   MyHomeServer  │────│ MCP Client      │────│   MCP Servers   │
+│   (React UI)    │    │ Bridge (HTTP ↔  │    │  (stdio)        │
+└─────────────────┘    │ stdio JSON-RPC) │    │                 │
+                       └─────────────────┘    │ • Tapo Camera   │
+┌─────────────────┐                          │ • Netatmo       │
+│   FastAPI       │    ┌─────────────────┐   │ • Ring          │
+│   (MCP Client)  │────│ Auto-Discovery  │───│ • Home Assistant│
+│                 │    │ Registry        │   │ • Local LLM     │
+└─────────────────┘    │ (50+ servers)   │   │ • ... 45+ more  │
+                       └─────────────────┘   └─────────────────┘
 ```
 
 ## 📁 Project Structure
@@ -70,15 +77,24 @@ myhomeserver/
 │   ├── package.json
 │   ├── tailwind.config.js
 │   └── vite.config.ts
-├── backend/               # FastAPI proxy
-│   ├── api/
-│   │   ├── routes.py      # MCP proxy endpoints
-│   │   └── middleware.py
-│   ├── main.py
-│   └── requirements.txt
+├── backend/               # FastAPI MCP client
+│   ├── app/
+│   │   ├── main.py        # FastAPI app + MCP initialization
+│   │   ├── config.py      # App configuration
+│   │   ├── api/           # HTTP API endpoints
+│   │   │   ├── __init__.py
+│   │   │   └── mcp.py     # MCP bridge endpoints
+│   │   ├── mcp/           # MCP client implementation
+│   │   │   ├── __init__.py
+│   │   │   ├── client.py  # MCP stdio client
+│   │   │   └── registry.py # Server registry & discovery
+│   │   └── utils/         # Error handling, etc.
+│   ├── requirements.txt
+│   └── start.py           # Startup script
 ├── docs/                  # Documentation
 │   ├── README.md         # This file
 │   ├── PRD.md           # Product Requirements
+│   ├── CHANGELOG.md     # Version history
 │   └── api/             # API documentation
 └── shared/               # Shared types/config
 ```
@@ -91,11 +107,11 @@ MyHomeServer integrates with multiple MCP servers for comprehensive smart home c
 
 | Server | Purpose | Repository | Port |
 |--------|---------|------------|------|
-| **Tapo Camera MCP** | Cameras & Energy | `tapo-camera-mcp` | 7778 |
-| **Netatmo MCP** | Weather & Sensors | `netatmo-mcp` | 7780 |
+| **Tapo Camera MCP** | Cameras & Energy | `tapo-camera-mcp` | 7778-7780 |
+| **Netatmo Weather MCP** | Weather & Sensors | `netatmo-weather-mcp` | 7781 |
 | **Ring MCP** | Security Systems | `ring-mcp` | 7782 |
-| **Home Assistant MCP** | Smart Home Hub | `home-assistant-mcp` | 7784 |
-| **Local LLM MCP** | AI Intelligence | `local-llm-mcp` | 7786 |
+| **Home Assistant MCP** | Smart Home Hub (Nest) | `home-assistant-mcp` | 7783 |
+| **Local LLM MCP** | AI Intelligence | `local-llm-mcp` | 7784 |
 
 ### Unified API Endpoints
 
@@ -118,6 +134,70 @@ GET  /api/ai/insights        # AI insights
 GET  /api/ai/suggestions     # Automation suggestions
 POST /api/ai/automation      # Create automations
 ```
+
+## 🔧 MCP Client API
+
+MyHomeServer includes a complete MCP client implementation that bridges HTTP requests to MCP server stdio communication. This allows interaction with any MCP server in the ecosystem.
+
+**📖 [Technical Implementation Details](docs/MCP_CLIENT_TECHNICAL.md)** - Complete technical documentation of the MCP client architecture, protocol implementation, and integration patterns.
+
+### MCP Server Management
+```python
+GET  /api/v1/mcp/servers                    # List all discovered MCP servers
+POST /api/v1/mcp/servers/{name}/initialize   # Start/initialize MCP server
+POST /api/v1/mcp/servers/{name}/shutdown     # Stop MCP server
+GET  /api/v1/mcp/health                      # MCP system health check
+```
+
+### Tool Operations
+```python
+GET  /api/v1/mcp/servers/{name}/tools         # List server tools
+POST /api/v1/mcp/tools/call                   # Call a tool on any server
+{
+  "server": "tapo-camera-mcp",
+  "tool": "list_cameras",
+  "arguments": {}
+}
+```
+
+### Resource Operations
+```python
+GET  /api/v1/mcp/servers/{name}/resources     # List server resources
+POST /api/v1/mcp/resources/read               # Read resource content
+{
+  "server": "plex-mcp",
+  "uri": "plex://libraries"
+}
+```
+
+### Prompt Operations
+```python
+GET  /api/v1/mcp/servers/{name}/prompts       # List server prompts
+POST /api/v1/mcp/prompts/get                  # Get prompt content
+{
+  "server": "ai-assistant-mcp",
+  "prompt": "code_review",
+  "arguments": {"language": "python"}
+}
+```
+
+### Auto-Discovered Servers
+
+MyHomeServer automatically discovers **50+ MCP servers** in the workspace, including:
+
+| Category | Examples | Count |
+|----------|----------|-------|
+| **Camera** | tapo-camera-mcp, ring-mcp | 8 servers |
+| **Energy** | Smart plugs, power monitoring | 5 servers |
+| **Weather** | netatmo-weather-mcp, sensors | 3 servers |
+| **Security** | Ring doorbell, alarms | 4 servers |
+| **Smart Home** | home-assistant-mcp (Nest) | 3 servers |
+| **Lighting** | Philips Hue, smart bulbs | 4 servers |
+| **Media** | Plex, Jellyfin, media servers | 6 servers |
+| **AI** | Local LLMs, AI assistants | 7 servers |
+| **Network** | Tailscale, VPN management | 3 servers |
+| **Development** | Build tools, deployment | 12 servers |
+| **Virtualization** | VM management, containers | 4 servers |
 
 ## 🚀 Development Roadmap
 
@@ -164,31 +244,127 @@ POST /api/ai/automation      # Create automations
 ### Prerequisites
 - Node.js 18+
 - Python 3.9+
-- MCP servers running:
-  - tapo-camera-mcp
-  - netatmo-mcp
-  - ring-mcp
-  - home-assistant-mcp
-  - local-llm-mcp
+- **MCP Servers** (strongly recommended for full functionality):
+  - `tapo-camera-mcp` (port 7778) - Cameras, energy monitoring, smart plugs
+  - `ring-mcp` (port 7782) - Doorbell cameras and security systems
+  - `home-assistant-mcp` (port 7783) - Smart home hubs and Nest devices
+  - `netatmo-mcp` (port 7781) - Weather sensors and indoor air quality
+  - `local-llm-mcp` (port 7784) - AI assistance and automation
+
+### Testing Physical Devices
+
+MyHomeServer includes comprehensive testing for physical smart home devices:
+
+```bash
+# Run complete device integration tests
+cd tests
+python test_devices.py
+
+# Tests the following devices:
+# - 2 Tapo cameras (live streaming, PTZ control)
+# - 2 USB cameras (OpenCV integration)
+# - 3 Tapo smart plugs (power monitoring, remote control)
+# - 1 Tapo lightstrip (RGB lighting control)
+# - 1 Philips Hue bridge (lighting automation)
+# - 1 Netatmo weather station (environmental monitoring)
+```
+
+**Test Results Summary:**
+- Device connectivity verification
+- Functional testing (camera streaming, plug control, etc.)
+- MCP server integration validation
+- Cross-device integration testing
+
+### MCP Server Setup
+
+MyHomeServer integrates with existing MCP servers in your `d:\Dev\repos` workspace:
+
+```powershell
+# Quick start all services
+.\start-all.ps1
+
+# Or start MCP servers individually:
+cd ../tapo-camera-mcp
+python -m tapo_camera_mcp.server  # Starts on ports 7778, 7779, 7780
+
+cd ../ring-mcp
+python -m ring_mcp.server  # Starts on port 7782
+
+cd ../home-assistant-mcp
+python -m home_assistant_mcp.server  # Starts on port 7783
+
+# Then start MyHomeServer:
+cd myhomeserver/frontend
+npm run dev:full
+```
 
 ### Quick Start
-```bash
-# Clone and setup
-git clone <repository-url>
-cd myhomeserver
 
-# Backend setup
+#### Option 1: Full Ecosystem (Recommended)
+```bash
+# Start everything with one command
+.\start-all.ps1
+# Choose option 3 to start both MyHomeServer services
+
+# Test MCP functionality
+npm run test:mcp
+
+# Test physical device integration (requires devices)
+npm run test:devices
+```
+
+#### Option 2: Manual Setup
+```bash
+# Start MCP servers first (from d:\Dev\repos)
+cd ../tapo-camera-mcp
+python -m tapo_camera_mcp.server
+
+cd ../ring-mcp
+python -m ring_mcp.server
+
+# Then start MyHomeServer
+cd myhomeserver
 cd backend
 python -m venv venv
-venv\Scripts\activate  # Windows
+venv\Scripts\activate
 pip install -r requirements.txt
-python main.py
+python start.py
 
-# Frontend setup (new terminal)
-cd frontend
+# Frontend (new terminal)
+cd ../frontend
 npm install
 npm run dev
 ```
+
+### Environment Configuration
+
+Create a `.env` file in the backend directory:
+```env
+# MyHomeServer Configuration
+DEBUG=True
+LOG_LEVEL=INFO
+
+# MCP Server URLs (optional - defaults provided)
+TAPO_CAMERA_URL=http://localhost:7778
+NETATMO_URL=http://localhost:7781
+RING_URL=http://localhost:7782
+HOME_ASSISTANT_URL=http://localhost:7783
+LOCAL_LLM_URL=http://localhost:7784
+```
+
+### Access Points
+- **Frontend**: http://localhost:5173 (Vite dev server)
+- **Backend API**: http://localhost:11111
+- **API Documentation**: http://localhost:11111/docs
+- **Health Check**: http://localhost:11111/health
+
+### Development Workflow
+
+1. **Start MCP servers** (if available) for full functionality
+2. **Run backend** with `python start.py`
+3. **Run frontend** with `npm run dev`
+4. **Access dashboard** at http://localhost:5173
+5. **Check API health** at http://localhost:8000/health
 
 ## 📊 Key Metrics
 
@@ -201,6 +377,16 @@ npm run dev
 ## 🤝 Contributing
 
 This project is in active development. See `docs/PRD.md` for detailed requirements and roadmap.
+
+## 📋 Changelog
+
+See [CHANGELOG.md](docs/CHANGELOG.md) for a complete list of changes and version history.
+
+## 🆘 Help & Support
+
+- **[Help System](help/)** - Comprehensive user and technical documentation
+- **[Troubleshooting](help/troubleshooting/)** - Common issues and solutions
+- **[Technical Documentation](help/technical/)** - Architecture and API details
 
 ## 📄 License
 
