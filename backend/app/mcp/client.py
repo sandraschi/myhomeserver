@@ -97,6 +97,12 @@ class MCPClient:
             env = os.environ.copy()
             env["PYTHONPATH"] = str(Path(__file__).parent.parent.parent.parent / "src")
 
+            # Add the server's own src directory to PYTHONPATH if working directory is set
+            if self.working_directory:
+                server_src = Path(self.working_directory) / "src"
+                if server_src.exists():
+                    env["PYTHONPATH"] = f"{env['PYTHONPATH']}:{str(server_src)}"
+
             # Add server-specific environment variables
             env.update(self.environment)
 
@@ -434,9 +440,14 @@ class MCPClientManager:
                 else:
                     return False
 
-            # For now, don't auto-start servers during health checks
-            # They will be started manually when configurations are verified
-            return False
+            # Auto-start servers that are configured to auto-start
+            try:
+                client = await self.get_client(server_name)
+                # Simple health check - try to list tools
+                await client.list_tools()
+                return True
+            except Exception:
+                return False
 
             return False
         except Exception:
@@ -459,8 +470,12 @@ class MCPClientManager:
                     except:
                         healthy = False
                 elif auto_start:
-                    # For servers configured to auto-start but not running, mark as not started
-                    healthy = False
+                    # For servers configured to auto-start but not running, try to start them
+                    try:
+                        client = await self.get_client(name)
+                        healthy = True
+                    except:
+                        healthy = False
                 else:
                     # For servers not configured to auto-start
                     healthy = False
