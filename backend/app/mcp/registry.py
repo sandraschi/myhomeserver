@@ -315,7 +315,7 @@ async def initialize_mcp_registry() -> None:
     if tapo_path.exists():
         config = MCPServerConfig(
             name="tapo-camera-mcp",
-            command=["python", "-c", "from tapo_camera_mcp.core.server import TapoCameraServer; import asyncio; server = asyncio.run(TapoCameraServer.get_instance()); asyncio.run(server.run(stdio=True, direct=True))"],
+            command=["python", "-m", "tapo_camera_mcp.cli_v2"],
             description="Tapo camera and smart device control",
             category="camera",
             auto_start=True,  # Auto-start with config
@@ -328,7 +328,7 @@ async def initialize_mcp_registry() -> None:
     if ring_path.exists():
         config = MCPServerConfig(
             name="ring-mcp",
-            command=["python", "-m", "ring_mcp"],
+            command=["ring-mcp"],
             description="Ring doorbell and security system",
             category="security",
             auto_start=True,  # Auto-start with config
@@ -354,10 +354,10 @@ async def initialize_mcp_registry() -> None:
     if netatmo_path.exists():
         config = MCPServerConfig(
             name="netatmo-weather-mcp",
-            command=["python", "src/netatmo_weather_mcp/server.py"],
+            command=["python", "-m", "netatmo_weather_mcp.server"],
             description="Netatmo weather sensors",
             category="weather",
-            auto_start=False,  # Disable auto-start until tested
+            auto_start=True,  # Enable auto-start
             working_directory=str(netatmo_path),
         )
         mcp_registry.register_server(config)
