@@ -87,11 +87,16 @@ class MCPClient:
         # Reader/writer for stdio communication
         self.reader: Optional[asyncio.StreamReader] = None
         self.writer: Optional[asyncio.StreamWriter] = None
+        self.stdout_reader: Optional[asyncio.Task] = None
 
     async def start_server(self) -> None:
         """Start the MCP server process."""
         try:
+            # Use working directory if specified
+            cwd = self.working_directory or os.getcwd()
+
             logger.info(f"Starting MCP server: {' '.join(self.server_command)}")
+            logger.info(f"MCP server working directory: {cwd}")
 
             # Set PYTHONPATH to include src directory
             env = os.environ.copy()
@@ -99,15 +104,19 @@ class MCPClient:
 
             # Add the server's own src directory to PYTHONPATH if working directory is set
             if self.working_directory:
+                # Add the MCP server root directory (for bin scripts that need it)
+                env["PYTHONPATH"] = f"{self.working_directory}:{env['PYTHONPATH']}"
+
+                # Also add the src subdirectory if it exists
                 server_src = Path(self.working_directory) / "src"
                 if server_src.exists():
-                    env["PYTHONPATH"] = f"{env['PYTHONPATH']}:{str(server_src)}"
+                    # Prepend the server src directory to PYTHONPATH for higher priority
+                    env["PYTHONPATH"] = f"{str(server_src)}:{env['PYTHONPATH']}"
 
             # Add server-specific environment variables
             env.update(self.environment)
 
-            # Use working directory if specified
-            cwd = self.working_directory or os.getcwd()
+            logger.info(f"MCP server PYTHONPATH: {env.get('PYTHONPATH', 'NOT SET')}")
 
             self.process = await asyncio.create_subprocess_exec(
                 *self.server_command,
@@ -118,18 +127,16 @@ class MCPClient:
                 cwd=cwd
             )
 
-            # Set up stdio streams
-            self.reader = asyncio.StreamReader()
-            reader_protocol = asyncio.StreamReaderProtocol(self.reader)
-            transport, _ = await asyncio.get_event_loop().connect_read_pipe(
-                lambda: reader_protocol, self.process.stdout
-            )
+            # Set up stdio communication
+            if not self.process.stdout:
+                raise MCPClientError("Failed to get stdout from MCP server process")
 
-            # Start background reader task
-            asyncio.create_task(self._read_responses())
+            # Start background task to read responses from stdout
+            self.stdout_reader = asyncio.create_task(self._read_stdout_lines())
 
-            # Start background error reader
-            asyncio.create_task(self._read_stderr())
+            # Start background error reader if stderr available
+            if self.process.stderr:
+                asyncio.create_task(self._read_stderr())
 
             logger.info(f"MCP server {self.server_name} started successfully")
 
@@ -139,6 +146,14 @@ class MCPClient:
 
     async def stop_server(self) -> None:
         """Stop the MCP server process."""
+        # Cancel stdout reader task
+        if self.stdout_reader and not self.stdout_reader.done():
+            self.stdout_reader.cancel()
+            try:
+                await self.stdout_reader
+            except asyncio.CancelledError:
+                pass
+
         if self.process:
             try:
                 self.process.terminate()
@@ -157,9 +172,10 @@ class MCPClient:
     async def initialize(self) -> Dict[str, Any]:
         """Initialize the MCP server and negotiate capabilities."""
         try:
-            logger.info(f"Initializing MCP server {self.server_name}")
+            logger.info(f"Starting MCP handshake with {self.server_name}")
 
             # Send initialize request
+            logger.info(f"Sending initialize request to {self.server_name}")
             result = await self._send_request("initialize", {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {
@@ -175,21 +191,24 @@ class MCPClient:
 
             self.server_info = result
             self.initialized = True
+            logger.info(f"MCP server {self.server_name} initialized successfully")
 
             # Cache available capabilities
+            logger.info(f"Caching capabilities for {self.server_name}")
             await self._cache_capabilities()
+            logger.info(f"MCP handshake complete for {self.server_name}: tools={len(self.available_tools)}, resources={len(self.available_resources)}, prompts={len(self.available_prompts)}")
 
-            logger.info(f"MCP server {self.server_name} initialized: {result.get('serverInfo', {})}")
             return result
 
         except Exception as e:
-            logger.error(f"Failed to initialize MCP server {self.server_name}: {e}")
+            logger.error(f"Failed MCP handshake with {self.server_name}: {e}")
             raise MCPClientError(f"Initialization failed: {e}")
 
     async def _cache_capabilities(self) -> None:
         """Cache server capabilities after initialization."""
         try:
             # Cache tools
+            logger.debug(f"Querying tools from {self.server_name}")
             tools_result = await self._send_request("tools/list", {})
             self.available_tools = [
                 MCPTool(
@@ -199,8 +218,10 @@ class MCPClient:
                 )
                 for tool in tools_result.get("tools", [])
             ]
+            logger.debug(f"Cached {len(self.available_tools)} tools from {self.server_name}")
 
             # Cache resources
+            logger.debug(f"Querying resources from {self.server_name}")
             resources_result = await self._send_request("resources/list", {})
             self.available_resources = [
                 MCPResource(
@@ -211,8 +232,10 @@ class MCPClient:
                 )
                 for resource in resources_result.get("resources", [])
             ]
+            logger.debug(f"Cached {len(self.available_resources)} resources from {self.server_name}")
 
             # Cache prompts
+            logger.debug(f"Querying prompts from {self.server_name}")
             prompts_result = await self._send_request("prompts/list", {})
             self.available_prompts = [
                 MCPPrompt(
@@ -222,6 +245,7 @@ class MCPClient:
                 )
                 for prompt in prompts_result.get("prompts", [])
             ]
+            logger.debug(f"Cached {len(self.available_prompts)} prompts from {self.server_name}")
 
         except Exception as e:
             logger.warning(f"Failed to cache capabilities for {self.server_name}: {e}")
@@ -280,7 +304,7 @@ class MCPClient:
 
     async def _send_request(self, method: str, params: Dict[str, Any]) -> Any:
         """Send a JSON-RPC request and wait for response."""
-        if not self.process or not self.writer:
+        if not self.process or not self.process.stdin:
             raise MCPProtocolError("MCP server not connected")
 
         request_id = self.next_id
@@ -297,10 +321,10 @@ class MCPClient:
         future = asyncio.Future()
         self.pending_requests[request_id] = future
 
-        # Send request
+        # Send request to stdin
         request_json = json.dumps(request) + "\n"
-        self.writer.write(request_json.encode())
-        await self.writer.drain()
+        self.process.stdin.write(request_json.encode())
+        await self.process.stdin.drain()
 
         logger.debug(f"Sent MCP request: {method} (id: {request_id})")
 
@@ -313,25 +337,30 @@ class MCPClient:
             del self.pending_requests[request_id]
             raise MCPProtocolError(f"Request timeout for method {method}")
 
-    async def _read_responses(self) -> None:
-        """Background task to read JSON-RPC responses."""
-        if not self.reader:
+    async def _read_stdout_lines(self) -> None:
+        """Background task to read JSON-RPC responses from stdout."""
+        if not self.process or not self.process.stdout:
             return
 
         try:
             while True:
-                line = await self.reader.readline()
+                # Read line from stdout
+                line = await self.process.stdout.readline()
                 if not line:
                     break
 
+                line_str = line.decode().strip()
+                if not line_str:
+                    continue
+
                 try:
-                    response = json.loads(line.decode().strip())
+                    response = json.loads(line_str)
                     await self._handle_response(response)
                 except json.JSONDecodeError:
-                    logger.warning(f"Invalid JSON from {self.server_name}: {line.decode().strip()}")
+                    logger.warning(f"Invalid JSON from {self.server_name}: {line_str}")
 
         except Exception as e:
-            logger.error(f"Error reading from {self.server_name}: {e}")
+            logger.error(f"Error reading stdout from {self.server_name}: {e}")
 
     async def _handle_response(self, response: Dict[str, Any]) -> None:
         """Handle a JSON-RPC response."""
