@@ -123,9 +123,13 @@ class MCPClient:
             logger.info(f"Environment PYTHONPATH: {env.get('PYTHONPATH', 'NOT SET')}")
 
             try:
+                # For MCP servers, we need stdin/stdout pipes for stdio communication
+                # But for testing, we might not need stdin
+                stdin_pipe = asyncio.subprocess.PIPE if "stdio" in str(self.server_command) or "mcp" in str(self.server_command) else None
+
                 self.process = await asyncio.create_subprocess_exec(
                     *self.server_command,
-                    stdin=asyncio.subprocess.PIPE,
+                    stdin=stdin_pipe,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     env=env,
