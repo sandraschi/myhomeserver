@@ -386,10 +386,15 @@ class MCPClient:
                 if not line:
                     break
 
-                logger.debug(f"{self.server_name} stderr: {line.decode().strip()}")
+                line_str = line.decode().strip()
+                if line_str:
+                    logger.error(f"MCP server {self.server_name} stderr: {line_str}")
+                    # Also print to stdout for immediate visibility
+                    print(f"MCP server {self.server_name} stderr: {line_str}")
 
         except Exception as e:
             logger.error(f"Error reading stderr from {self.server_name}: {e}")
+            print(f"Error reading stderr from {self.server_name}: {e}")
 
     async def __aenter__(self):
         """Async context manager entry."""
