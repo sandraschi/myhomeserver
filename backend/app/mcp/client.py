@@ -118,14 +118,23 @@ class MCPClient:
 
             logger.info(f"MCP server PYTHONPATH: {env.get('PYTHONPATH', 'NOT SET')}")
 
-            self.process = await asyncio.create_subprocess_exec(
-                *self.server_command,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env,
-                cwd=cwd
-            )
+            logger.info(f"Creating subprocess with command: {self.server_command}")
+            logger.info(f"Working directory: {cwd}")
+            logger.info(f"Environment PYTHONPATH: {env.get('PYTHONPATH', 'NOT SET')}")
+
+            try:
+                self.process = await asyncio.create_subprocess_exec(
+                    *self.server_command,
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=env,
+                    cwd=cwd
+                )
+                logger.info(f"Subprocess created successfully with PID: {self.process.pid}")
+            except Exception as e:
+                logger.error(f"Failed to create subprocess: {e}")
+                raise
 
             # Set up stdio communication
             if not self.process.stdout:

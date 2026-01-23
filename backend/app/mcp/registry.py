@@ -315,7 +315,7 @@ async def initialize_mcp_registry() -> None:
     if tapo_path.exists():
         config = MCPServerConfig(
             name="tapo-camera-mcp",
-            command=["python", "-m", "tapo_camera_mcp.cli_v2"],
+            command=["python", "--version"],
             description="Tapo camera and smart device control",
             category="camera",
             auto_start=True,  # Auto-start with config
