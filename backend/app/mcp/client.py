@@ -127,15 +127,30 @@ class MCPClient:
                 # But for testing, we might not need stdin
                 stdin_pipe = asyncio.subprocess.PIPE if "stdio" in str(self.server_command) or "mcp" in str(self.server_command) else None
 
-                self.process = await asyncio.create_subprocess_exec(
-                    *self.server_command,
-                    stdin=stdin_pipe,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    env=env,
-                    cwd=cwd
-                )
-                logger.info(f"Subprocess created successfully with PID: {self.process.pid}")
+                # Try without cwd first to see if that's the issue
+                logger.info(f"Trying subprocess creation without cwd...")
+                try:
+                    self.process = await asyncio.create_subprocess_exec(
+                        *self.server_command,
+                        stdin=stdin_pipe,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                        env=env
+                    )
+                    logger.info(f"Subprocess created successfully without cwd, PID: {self.process.pid}")
+                except Exception as e_no_cwd:
+                    logger.warning(f"Failed without cwd: {e_no_cwd}, trying with cwd...")
+                    # If that fails, try with cwd
+                    self.process = await asyncio.create_subprocess_exec(
+                        *self.server_command,
+                        stdin=stdin_pipe,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                        env=env,
+                        cwd=cwd
+                    )
+                    logger.info(f"Subprocess created successfully with cwd, PID: {self.process.pid}")
+
             except Exception as e:
                 logger.error(f"Failed to create subprocess: {e}")
                 raise
