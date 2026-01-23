@@ -67,9 +67,12 @@ class MCPClient:
     - prompts/get: Get prompt contents
     """
 
-    def __init__(self, server_command: List[str], server_name: str = "unknown"):
+    def __init__(self, server_command: List[str], server_name: str = "unknown",
+                 working_directory: Optional[str] = None, environment: Optional[Dict[str, str]] = None):
         self.server_command = server_command
         self.server_name = server_name
+        self.working_directory = working_directory
+        self.environment = environment or {}
         self.process: Optional[asyncio.subprocess.Process] = None
         self.initialized = False
         self.server_info: Optional[Dict[str, Any]] = None
@@ -94,12 +97,19 @@ class MCPClient:
             env = os.environ.copy()
             env["PYTHONPATH"] = str(Path(__file__).parent.parent.parent.parent / "src")
 
+            # Add server-specific environment variables
+            env.update(self.environment)
+
+            # Use working directory if specified
+            cwd = self.working_directory or os.getcwd()
+
             self.process = await asyncio.create_subprocess_exec(
                 *self.server_command,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                env=env
+                env=env,
+                cwd=cwd
             )
 
             # Set up stdio streams
@@ -385,7 +395,12 @@ class MCPClientManager:
             if not auto_start:
                 raise MCPClientError(f"MCP server {server_name} is not configured to auto-start")
 
-            client = MCPClient(config["command"], server_name)
+            client = MCPClient(
+                config["command"],
+                server_name,
+                working_directory=config.get("working_directory"),
+                environment=config.get("environment", {})
+            )
             await client.start_server()
             await client.initialize()
             self.clients[server_name] = client

@@ -309,8 +309,8 @@ async def initialize_mcp_registry() -> None:
     # Example registrations (these would be auto-discovered)
     workspace_root = Path(__file__).parent.parent.parent.parent.parent
 
-    # MCP servers registered but not auto-started (need configuration)
-    # Tapo Camera MCP - devices shown in dashboard but MCP server needs config
+    # MCP servers registered and auto-started with proper configuration
+    # Tapo Camera MCP - auto-start with config from tapo-camera-mcp directory
     tapo_path = workspace_root / "tapo-camera-mcp"
     if tapo_path.exists():
         config = MCPServerConfig(
@@ -318,12 +318,12 @@ async def initialize_mcp_registry() -> None:
             command=["python", "-m", "tapo_camera_mcp"],
             description="Tapo camera and smart device control",
             category="camera",
-            auto_start=False,  # Disable auto-start until configured
+            auto_start=True,  # Auto-start with config
             working_directory=str(tapo_path),
         )
         mcp_registry.register_server(config)
 
-    # Ring MCP - devices shown in dashboard but MCP server needs config
+    # Ring MCP - auto-start with config from ring-mcp directory
     ring_path = workspace_root / "ring-mcp"
     if ring_path.exists():
         config = MCPServerConfig(
@@ -331,7 +331,7 @@ async def initialize_mcp_registry() -> None:
             command=["python", "-m", "ring_mcp"],
             description="Ring doorbell and security system",
             category="security",
-            auto_start=False,  # Disable auto-start until configured
+            auto_start=True,  # Auto-start with config
             working_directory=str(ring_path),
         )
         mcp_registry.register_server(config)
@@ -349,7 +349,7 @@ async def initialize_mcp_registry() -> None:
         )
         mcp_registry.register_server(config)
 
-    # Netatmo MCP - .env created but may need password verification
+    # Netatmo MCP - auto-start with .env from netatmo-weather-mcp directory
     netatmo_path = workspace_root / "netatmo-weather-mcp"
     if netatmo_path.exists():
         config = MCPServerConfig(
