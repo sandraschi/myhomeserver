@@ -315,7 +315,7 @@ async def initialize_mcp_registry() -> None:
     if tapo_path.exists():
         config = MCPServerConfig(
             name="tapo-camera-mcp",
-            command=["python", "--version"],
+            command=["python", "-m", "tapo_camera_mcp.cli_v2"],
             description="Tapo camera and smart device control",
             category="camera",
             auto_start=True,  # Auto-start with config
@@ -349,18 +349,18 @@ async def initialize_mcp_registry() -> None:
         )
         mcp_registry.register_server(config)
 
-    # Netatmo MCP - auto-start with .env from netatmo-weather-mcp directory
-    netatmo_path = workspace_root / "netatmo-weather-mcp"
-    if netatmo_path.exists():
-        config = MCPServerConfig(
-            name="netatmo-weather-mcp",
-            command=["python", "-m", "netatmo_weather_mcp.server"],
-            description="Netatmo weather sensors",
-            category="weather",
-            auto_start=True,  # Enable auto-start
-            working_directory=str(netatmo_path),
-        )
-        mcp_registry.register_server(config)
+    # Netatmo MCP - disabled due to API changes, needs update
+    # netatmo_path = workspace_root / "netatmo-weather-mcp"
+    # if netatmo_path.exists():
+    #     config = MCPServerConfig(
+    #         name="netatmo-weather-mcp",
+    #         command=["python", "-m", "netatmo_weather_mcp.server"],
+    #         description="Netatmo weather sensors",
+    #         category="weather",
+    #         auto_start=False,  # Disabled due to API changes
+    #         working_directory=str(netatmo_path),
+    #     )
+    #     mcp_registry.register_server(config)
 
     # Local LLM MCP - commented out as not needed for smart home devices
     # llm_path = workspace_root / "local-llm-mcp"
