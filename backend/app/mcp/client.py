@@ -379,6 +379,12 @@ class MCPClientManager:
                 raise MCPClientError(f"Unknown MCP server: {server_name}")
 
             config = self.server_configs[server_name]
+            auto_start = config.get("auto_start", True)
+
+            # Don't start servers that are not configured to auto-start
+            if not auto_start:
+                raise MCPClientError(f"MCP server {server_name} is not configured to auto-start")
+
             client = MCPClient(config["command"], server_name)
             await client.start_server()
             await client.initialize()
@@ -395,6 +401,14 @@ class MCPClientManager:
     async def health_check(self, server_name: str) -> bool:
         """Check if an MCP server is healthy."""
         try:
+            # Only check health for servers that are already running or configured to auto-start
+            config = self.server_configs.get(server_name, {})
+            auto_start = config.get("auto_start", True)
+
+            # If server is not configured to auto-start and not already running, consider it "not healthy" (not started)
+            if not auto_start and server_name not in self.clients:
+                return False
+
             client = await self.get_client(server_name)
             # Simple health check - try to list tools
             await client.list_tools()
@@ -407,15 +421,28 @@ class MCPClientManager:
         result = {}
         for name, config in self.server_configs.items():
             try:
+                auto_start = config.get("auto_start", True)
                 healthy = await self.health_check(name)
                 client = self.clients.get(name)
-                result[name] = {
-                    "healthy": healthy,
-                    "command": config["command"],
-                    "tools_count": len(client.available_tools) if client else 0,
-                    "resources_count": len(client.available_resources) if client else 0,
-                    "prompts_count": len(client.available_prompts) if client else 0,
-                }
+
+                # For servers not configured to auto-start, show status without trying to start them
+                if not auto_start and not healthy:
+                    result[name] = {
+                        "healthy": False,
+                        "command": config["command"],
+                        "tools_count": 0,
+                        "resources_count": 0,
+                        "prompts_count": 0,
+                        "status": "not_started"
+                    }
+                else:
+                    result[name] = {
+                        "healthy": healthy,
+                        "command": config["command"],
+                        "tools_count": len(client.available_tools) if client else 0,
+                        "resources_count": len(client.available_resources) if client else 0,
+                        "prompts_count": len(client.available_prompts) if client else 0,
+                    }
             except Exception as e:
                 result[name] = {
                     "healthy": False,

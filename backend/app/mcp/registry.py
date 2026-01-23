@@ -309,7 +309,8 @@ async def initialize_mcp_registry() -> None:
     # Example registrations (these would be auto-discovered)
     workspace_root = Path(__file__).parent.parent.parent.parent.parent
 
-    # Tapo Camera MCP
+    # MCP servers registered but not auto-started (need configuration)
+    # Tapo Camera MCP - devices shown in dashboard but MCP server needs config
     tapo_path = workspace_root / "tapo-camera-mcp"
     if tapo_path.exists():
         config = MCPServerConfig(
@@ -317,11 +318,12 @@ async def initialize_mcp_registry() -> None:
             command=["python", "-m", "tapo_camera_mcp"],
             description="Tapo camera and smart device control",
             category="camera",
+            auto_start=False,  # Disable auto-start until configured
             working_directory=str(tapo_path),
         )
         mcp_registry.register_server(config)
 
-    # Ring MCP
+    # Ring MCP - devices shown in dashboard but MCP server needs config
     ring_path = workspace_root / "ring-mcp"
     if ring_path.exists():
         config = MCPServerConfig(
@@ -329,11 +331,12 @@ async def initialize_mcp_registry() -> None:
             command=["python", "-m", "ring_mcp"],
             description="Ring doorbell and security system",
             category="security",
+            auto_start=False,  # Disable auto-start until configured
             working_directory=str(ring_path),
         )
         mcp_registry.register_server(config)
 
-    # Home Assistant MCP
+    # Home Assistant MCP - not installed in Docker yet
     ha_path = workspace_root / "home-assistant-mcp"
     if ha_path.exists():
         config = MCPServerConfig(
@@ -341,11 +344,12 @@ async def initialize_mcp_registry() -> None:
             command=["python", "-m", "home_assistant_mcp.cli"],
             description="Home Assistant smart home integration",
             category="home",
+            auto_start=False,  # HA not installed yet
             working_directory=str(ha_path),
         )
         mcp_registry.register_server(config)
 
-    # Netatmo MCP
+    # Netatmo MCP - .env created but may need password verification
     netatmo_path = workspace_root / "netatmo-weather-mcp"
     if netatmo_path.exists():
         config = MCPServerConfig(
@@ -353,6 +357,7 @@ async def initialize_mcp_registry() -> None:
             command=["python", "src/netatmo_weather_mcp/server.py"],
             description="Netatmo weather sensors",
             category="weather",
+            auto_start=False,  # Disable auto-start until tested
             working_directory=str(netatmo_path),
         )
         mcp_registry.register_server(config)
