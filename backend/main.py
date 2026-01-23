@@ -94,16 +94,111 @@ async def get_dashboard_overview():
 
 @app.get("/api/v1/devices")
 async def get_devices():
-    """Get all devices (representing user's actual setup)"""
+    """Get all devices (user's actual Tapo setup from config.yaml)"""
     return {
         "devices": [
+            # Tapo Cameras from config.yaml
+            {
+                "id": "tapo_kitchen",
+                "name": "Kitchen Camera",
+                "type": "camera",
+                "status": "online",
+                "location": "Kitchen",
+                "lastSeen": datetime.now() - timedelta(minutes=2),
+                "streamUrl": "rtsp://192.168.0.164:2020/stream",
+                "recordingEnabled": True,
+                "motionDetected": False,
+                "ptzEnabled": True,
+                "resolution": "1080p",
+                "nightVision": True,
+                "ip": "192.168.0.164",
+                "port": 2020
+            },
+            {
+                "id": "tapo_living_room",
+                "name": "Living Room Camera",
+                "type": "camera",
+                "status": "online",
+                "location": "Living Room",
+                "lastSeen": datetime.now() - timedelta(minutes=1),
+                "streamUrl": "rtsp://192.168.0.206:2020/stream",
+                "recordingEnabled": True,
+                "motionDetected": False,
+                "ptzEnabled": True,
+                "resolution": "1080p",
+                "nightVision": True,
+                "ip": "192.168.0.206",
+                "port": 2020
+            },
+            # Tapo P115 Energy Plugs from config.yaml
+            {
+                "id": "tapo_p115_aircon",
+                "name": "Aircon",
+                "type": "plug",
+                "status": "online",
+                "location": "Living Room",
+                "lastSeen": datetime.now() - timedelta(seconds=30),
+                "power": 0.0,
+                "voltage": 230.5,
+                "current": 0.0,
+                "todayKwh": 0.0,
+                "monthKwh": 0.0,
+                "isOn": False,
+                "ip": "192.168.0.17"
+            },
+            {
+                "id": "tapo_p115_kitchen",
+                "name": "Kitchen Zojirushi",
+                "type": "plug",
+                "status": "online",
+                "location": "Kitchen",
+                "lastSeen": datetime.now() - timedelta(seconds=45),
+                "power": 1200.0,  # Rice cooker usage
+                "voltage": 230.5,
+                "current": 5.2,
+                "todayKwh": 2.1,
+                "monthKwh": 67.8,
+                "isOn": True,
+                "ip": "192.168.0.137"
+            },
+            {
+                "id": "tapo_p115_server",
+                "name": "Server",
+                "type": "plug",
+                "status": "online",
+                "location": "Server Room",
+                "lastSeen": datetime.now() - timedelta(seconds=10),
+                "power": 85.0,
+                "voltage": 230.5,
+                "current": 0.37,
+                "todayKwh": 2.0,
+                "monthKwh": 61.5,
+                "isOn": True,
+                "ip": "192.168.0.38",
+                "readonly": True
+            },
+            # Tapo Lighting from config.yaml
+            {
+                "id": "tapo_l900_lightstrip",
+                "name": "Lightstrip L900",
+                "type": "light",
+                "status": "online",
+                "location": "Living Room",
+                "lastSeen": datetime.now() - timedelta(seconds=15),
+                "brightness": 80,
+                "isOn": True,
+                "supportsColor": True,
+                "supportsBrightness": True,
+                "ip": "192.168.0.174"
+            },
+            # Ring doorbell
             {
                 "id": "ring_front_door",
                 "name": "Ring Front Door",
                 "type": "camera",
                 "status": "online",
                 "location": "Front Door",
-                "lastSeen": datetime.now() - timedelta(minutes=2),
+                "lastSeen": datetime.now() - timedelta(minutes=3),
                 "streamUrl": "rtsp://ring_front_door:554/stream",
                 "recordingEnabled": True,
                 "motionDetected": False,
@@ -111,61 +206,20 @@ async def get_devices():
                 "resolution": "1080p",
                 "nightVision": True
             },
-            {
-                "id": "tapo_kitchen_camera",
-                "name": "Kitchen Camera",
-                "type": "camera",
-                "status": "online",
-                "location": "Kitchen",
-                "lastSeen": datetime.now() - timedelta(minutes=1),
-                "streamUrl": "rtsp://tapo_kitchen:554/stream",
-                "recordingEnabled": True,
-                "motionDetected": False,
-                "ptzEnabled": True,
-                "resolution": "1080p",
-                "nightVision": True
-            },
-            {
-                "id": "tapo_plug_living_room",
-                "name": "Living Room TV",
-                "type": "plug",
-                "status": "online",
-                "location": "Living Room",
-                "lastSeen": datetime.now() - timedelta(seconds=30),
-                "power": 85.3,
-                "voltage": 230.5,  # European voltage
-                "current": 0.37,
-                "todayKwh": 1.2,
-                "monthKwh": 32.8,
-                "isOn": True
-            },
-            {
-                "id": "tapo_plug_office",
-                "name": "Office Computer",
-                "type": "plug",
-                "status": "online",
-                "location": "Office",
-                "lastSeen": datetime.now() - timedelta(seconds=45),
-                "power": 145.7,
-                "voltage": 231.2,
-                "current": 0.63,
-                "todayKwh": 2.8,
-                "monthKwh": 89.4,
-                "isOn": True
-            },
+            # Netatmo Weather Station
             {
                 "id": "netatmo_weather_station",
                 "name": "Netatmo Weather Station",
                 "type": "sensor",
                 "status": "online",
                 "location": "Balcony",
-                "lastSeen": datetime.now() - timedelta(minutes=3),
+                "lastSeen": datetime.now() - timedelta(minutes=5),
                 "batteryLevel": 92,
                 "signalStrength": 88
             }
         ],
-        "total": 5,
-        "online": 5,
+        "total": 8,
+        "online": 8,
         "offline": 0
     }
 
@@ -196,10 +250,10 @@ async def dashboard_overview():
         from app.api.mcp import mcp_health_check
         mcp_status = await mcp_health_check()
 
-        # Realistic device data representing user's actual setup (excluding Home Assistant)
+        # Realistic device data representing user's actual Tapo setup
         real_devices = {
-            "total": 5,  # Ring camera + Tapo camera + Tapo plugs + Netatmo
-            "online": 5,
+            "total": 8,  # 2 cameras + 3 plugs + 1 light + 1 doorbell + 1 weather
+            "online": 8,
             "offline": 0,
             "warning": 0,
         }
@@ -207,7 +261,7 @@ async def dashboard_overview():
         real_events = [
             {
                 "id": "1",
-                "timestamp": datetime.now() - timedelta(minutes=5),
+                "timestamp": datetime.now() - timedelta(minutes=3),
                 "type": "motion",
                 "deviceId": "ring_front_door",
                 "deviceName": "Ring Front Door",
@@ -218,12 +272,23 @@ async def dashboard_overview():
             },
             {
                 "id": "2",
-                "timestamp": datetime.now() - timedelta(minutes=15),
+                "timestamp": datetime.now() - timedelta(minutes=12),
                 "type": "energy",
-                "deviceId": "tapo_plug_living_room",
-                "deviceName": "Living Room TV",
-                "location": "Living Room",
-                "description": "TV turned on - 85W usage",
+                "deviceId": "tapo_p115_kitchen",
+                "deviceName": "Kitchen Zojirushi",
+                "location": "Kitchen",
+                "description": "Rice cooker turned on - 1200W usage",
+                "severity": "low",
+                "acknowledged": True
+            },
+            {
+                "id": "3",
+                "timestamp": datetime.now() - timedelta(minutes=20),
+                "type": "camera",
+                "deviceId": "tapo_kitchen",
+                "deviceName": "Kitchen Camera",
+                "location": "Kitchen",
+                "description": "Motion detected in kitchen",
                 "severity": "low",
                 "acknowledged": True
             }
