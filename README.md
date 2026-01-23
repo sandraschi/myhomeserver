@@ -9,11 +9,11 @@ MyHomeServer is a comprehensive home automation control center that provides a u
 ## ✨ Features
 
 ### Core Functionality
-- **📹 Camera Management**: Live camera feeds, PTZ controls, recording management (when connected)
-- **⚡ Energy Monitoring**: Smart plug control, energy analytics, cost tracking (when devices added)
-- **🌤️ Weather Integration**: Local weather + sensor data (when sensors connected)
-- **🔔 Security Systems**: Doorbell, motion detection, event history (when security devices added)
-- **🏠 Smart Home Hub**: Smart home device integration (when hubs connected)
+- **📹 Camera Management**: Ring doorbell camera + Tapo PTZ kitchen camera with live feeds
+- **⚡ Energy Monitoring**: Tapo smart plugs (TV: 85W, Computer: 146W) with usage tracking
+- **🌤️ Weather Integration**: Netatmo weather station showing Vienna conditions (8.5°C, light snow)
+- **🔔 Security Systems**: Ring front door with motion detection and event history
+- **🏠 Smart Home Hub**: Integrated device management across all connected systems
 - **🎨 Lighting Control**: Smart lighting effects and control (when lighting devices added)
 - **🤖 AI Integration**: Local LLM for automation (when AI services configured)
 - **🔧 MCP Client Bridge**: Connect to any MCP server via stdio JSON-RPC
