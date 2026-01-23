@@ -138,6 +138,9 @@ class MCPClient:
             if self.process.stderr:
                 asyncio.create_task(self._read_stderr())
 
+            # Monitor process exit code
+            asyncio.create_task(self._monitor_process())
+
             logger.info(f"MCP server {self.server_name} started successfully")
 
         except Exception as e:
@@ -374,6 +377,19 @@ class MCPClient:
                 future.set_exception(MCPProtocolError(f"MCP error: {error.get('message', 'Unknown error')}"))
             else:
                 future.set_exception(MCPProtocolError("Invalid response format"))
+
+    async def _monitor_process(self) -> None:
+        """Monitor MCP server process and report exit code."""
+        if not self.process:
+            return
+
+        try:
+            return_code = await self.process.wait()
+            logger.error(f"MCP server {self.server_name} exited with code: {return_code}")
+            print(f"MCP server {self.server_name} exited with code: {return_code}")
+        except Exception as e:
+            logger.error(f"Error monitoring MCP server {self.server_name}: {e}")
+            print(f"Error monitoring MCP server {self.server_name}: {e}")
 
     async def _read_stderr(self) -> None:
         """Background task to read stderr for debugging."""
