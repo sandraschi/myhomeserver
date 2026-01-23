@@ -353,7 +353,7 @@ LOCAL_LLM_URL=http://localhost:7784
 ```
 
 ### Access Points
-- **Frontend**: http://localhost:5173 (Vite dev server)
+- **Frontend Dashboard**: http://localhost:5173 (React + Tailwind CSS)
 - **Backend API**: http://localhost:10500
 - **API Documentation**: http://localhost:10500/docs
 - **Health Check**: http://localhost:10500/health
@@ -364,7 +364,31 @@ LOCAL_LLM_URL=http://localhost:7784
 2. **Run backend** with `python start.py`
 3. **Run frontend** with `npm run dev`
 4. **Access dashboard** at http://localhost:5173
-5. **Check API health** at http://localhost:8000/health
+5. **Check API health** at http://localhost:10500/health
+
+### Troubleshooting
+
+#### CSS Not Loading (White Background Issue)
+- **Root Cause**: Missing PostCSS configuration for Tailwind CSS processing
+- **Symptoms**: Page loads with white background, no styling, plain HTML appearance
+- **Solution**: Ensure `frontend/postcss.config.js` exists with proper configuration
+- **Prevention**: Always verify PostCSS config when using Tailwind with Vite
+
+#### Port Conflicts and Zombie Processes
+- **Root Cause**: Previous development sessions leaving processes running
+- **Symptoms**: "Port already in use" errors, services not starting
+- **Solution**: Use `.\start-clean.ps1` which automatically terminates conflicting processes
+- **Prevention**: Always use clean startup script for development
+
+#### API Connection Issues
+- **Symptoms**: Frontend shows "Backend: Disconnected" or API errors
+- **Verification**: Test with `Invoke-WebRequest http://localhost:10500/health`
+- **Solution**: Ensure backend is running on port 10500, check CORS settings
+
+#### MCP Server Integration Issues
+- **Symptoms**: MCP status shows "0/X online" or connection failures
+- **Verification**: Check if MCP servers are running in workspace
+- **Solution**: Start individual MCP servers manually if auto-discovery fails
 
 ## 📊 Key Metrics
 

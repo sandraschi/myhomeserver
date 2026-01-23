@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-01-23
+
+### Fixed
+- **PostCSS Configuration**: Added missing `postcss.config.js` for Tailwind CSS processing
+  - Fixed CSS not loading in development (white background issue)
+  - Enabled proper Tailwind CSS compilation in Vite dev server
+- **Port Corrections**: Fixed incorrect port references throughout documentation
+  - Backend API: Changed from 11111 to 10500 for consistency
+  - Updated all configuration files, scripts, and documentation
+- **Startup Scripts**: Enhanced clean startup script with process management
+  - Added zombie process cleanup functionality
+  - Improved port conflict resolution
+  - Better error handling and user feedback
+
+### Technical Improvements
+- **CSS Processing**: Proper Tailwind CSS integration with PostCSS
+  - Vite now correctly processes `@tailwind` directives
+  - Dark theme styling fully functional
+- **Development Workflow**: Improved local development setup
+  - Clean startup without port conflicts
+  - Proper process lifecycle management
+  - Enhanced debugging capabilities
+
+### Infrastructure
+- **Package Management**: Updated frontend dependencies
+  - React 18.3.1, TypeScript 5.9.3, Tailwind CSS 3.4.19
+  - Improved build performance and compatibility
+- **Build Configuration**: Enhanced Vite configuration
+  - Proper PostCSS integration
+  - Optimized development server settings
+
 ## [2.0.0] - 2026-01-21
 
 ### Added

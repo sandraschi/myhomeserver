@@ -1,12 +1,13 @@
 # MyHomeServer - Start All Services
 # This script starts the MCP servers and MyHomeServer frontend/backend
 
-Write-Host "🚀 Starting MyHomeServer Ecosystem..." -ForegroundColor Green
+Write-Host "Starting MyHomeServer Ecosystem" -ForegroundColor Green
+Write-Host "==============================="
 Write-Host ""
 
 # Check if we're in the right directory
 if (!(Test-Path "backend\main.py")) {
-    Write-Host "❌ Error: Please run this script from the myhomeserver directory" -ForegroundColor Red
+    Write-Host "Error: Please run this script from the myhomeserver directory" -ForegroundColor Red
     exit 1
 }
 
@@ -36,26 +37,26 @@ $myHomeServers = @(
     @{Name="MyHomeServer Frontend"; Port=5173; Service="frontend"}
 )
 
-Write-Host "📋 Checking MCP Server Status..." -ForegroundColor Yellow
+Write-Host "Checking MCP Server Status..." -ForegroundColor Yellow
 foreach ($server in $mcpServers) {
     $available = Test-PortAvailable $server.Port
     if ($available) {
-        Write-Host "  ❌ $($server.Name) (port $($server.Port)) - Not running" -ForegroundColor Red
+        Write-Host "  [NOT RUNNING] $($server.Name) (port $($server.Port))" -ForegroundColor Red
     } else {
-        Write-Host "  ✅ $($server.Name) (port $($server.Port)) - Running" -ForegroundColor Green
+        Write-Host "  [RUNNING] $($server.Name) (port $($server.Port))" -ForegroundColor Green
     }
 }
 Write-Host ""
 
 # Check MyHomeServer ports
 Write-Host ""
-Write-Host "🔍 Checking MyHomeServer Status..." -ForegroundColor Yellow
+Write-Host "Checking MyHomeServer Status..." -ForegroundColor Yellow
 foreach ($server in $myHomeServers) {
     $available = Test-PortAvailable $server.Port
     if ($available) {
-        Write-Host "❌ $($server.Name) (port $($server.Port)) - Not running" -ForegroundColor Red
+        Write-Host "[NOT RUNNING] $($server.Name) (port $($server.Port))" -ForegroundColor Red
     } else {
-        Write-Host "✅ $($server.Name) (port $($server.Port)) - Running" -ForegroundColor Green
+        Write-Host "[RUNNING] $($server.Name) (port $($server.Port))" -ForegroundColor Green
     }
 }
 Write-Host ""
@@ -73,7 +74,7 @@ $choice = Read-Host "Enter your choice (1-5)"
 
 switch ($choice) {
     "1" {
-        Write-Host "🚀 Starting MyHomeServer Backend..." -ForegroundColor Green
+        Write-Host "Starting MyHomeServer Backend..." -ForegroundColor Green
         Write-Host "API will be available at: http://localhost:10500" -ForegroundColor Cyan
         Write-Host "API Documentation at: http://localhost:10500/docs" -ForegroundColor Cyan
         Write-Host "Health check at: http://localhost:10500/health" -ForegroundColor Cyan
@@ -82,12 +83,12 @@ switch ($choice) {
         python start.py
     }
     "2" {
-        Write-Host "🚀 Starting MyHomeServer Frontend..." -ForegroundColor Green
+        Write-Host "Starting MyHomeServer Frontend..." -ForegroundColor Green
         Set-Location frontend
         npm run dev
     }
     "3" {
-        Write-Host "🚀 Starting both MyHomeServer services..." -ForegroundColor Green
+        Write-Host "Starting both MyHomeServer services..." -ForegroundColor Green
         Write-Host ""
         Write-Host "This will start the backend and frontend concurrently." -ForegroundColor Yellow
         Write-Host "You can access MyHomeServer at: http://localhost:5173" -ForegroundColor Cyan
@@ -99,7 +100,7 @@ switch ($choice) {
         npm run dev:full
     }
     "4" {
-        Write-Host "📋 MCP Server Startup Commands:" -ForegroundColor Yellow
+        Write-Host "MCP Server Startup Commands:" -ForegroundColor Yellow
         Write-Host ""
         Write-Host "# Tapo Camera MCP (includes Camera, Energy, Lighting services)" -ForegroundColor Cyan
         Write-Host "cd ../tapo-camera-mcp" -ForegroundColor White
@@ -112,7 +113,7 @@ switch ($choice) {
         Write-Host "cd ../local-llm-mcp && python -m local_llm_mcp.server" -ForegroundColor White
     }
     "5" {
-        Write-Host "🔍 System Status Check Complete" -ForegroundColor Green
+        Write-Host "System Status Check Complete" -ForegroundColor Green
         Write-Host ""
         Write-Host "Summary:" -ForegroundColor Cyan
         Write-Host "- Backend API: http://localhost:10500" -ForegroundColor White
@@ -128,7 +129,7 @@ switch ($choice) {
         Write-Host "- Local LLM MCP: http://localhost:7784" -ForegroundColor White
     }
     default {
-        Write-Host "❌ Invalid choice. Please run the script again." -ForegroundColor Red
+        Write-Host "Invalid choice. Please run the script again." -ForegroundColor Red
     }
 }
 

@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="MyHomeServer API",
     description="Unified API for smart home automation via MCP servers",
-    version="2.0.0",
+    version="2.0.1",
     lifespan=lifespan,
 )
 
@@ -302,7 +302,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "service": "MyHomeServer API",
-        "version": "2.0.0",
+        "version": "2.0.1",
     }
 
 
