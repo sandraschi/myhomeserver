@@ -314,7 +314,7 @@ async def initialize_mcp_registry() -> None:
     if tapo_path.exists():
         config = MCPServerConfig(
             name="tapo-camera-mcp",
-            command=["python", "-m", "tapo_camera_mcp.cli_v2", "serve"],
+            command=["python", "-m", "tapo_camera_mcp"],
             description="Tapo camera and smart device control",
             category="camera",
             working_directory=str(tapo_path),
@@ -326,7 +326,7 @@ async def initialize_mcp_registry() -> None:
     if ring_path.exists():
         config = MCPServerConfig(
             name="ring-mcp",
-            command=["python", "-m", "ring_mcp.server"],
+            command=["python", "-m", "ring_mcp"],
             description="Ring doorbell and security system",
             category="security",
             working_directory=str(ring_path),
@@ -338,7 +338,7 @@ async def initialize_mcp_registry() -> None:
     if ha_path.exists():
         config = MCPServerConfig(
             name="home-assistant-mcp",
-            command=["python", "-m", "home_assistant_mcp.server"],
+            command=["python", "-m", "home_assistant_mcp.cli"],
             description="Home Assistant smart home integration",
             category="home",
             working_directory=str(ha_path),
@@ -350,23 +350,23 @@ async def initialize_mcp_registry() -> None:
     if netatmo_path.exists():
         config = MCPServerConfig(
             name="netatmo-weather-mcp",
-            command=["python", "-m", "netatmo_weather_mcp.server"],
+            command=["python", "src/netatmo_weather_mcp/server.py"],
             description="Netatmo weather sensors",
             category="weather",
             working_directory=str(netatmo_path),
         )
         mcp_registry.register_server(config)
 
-    # Local LLM MCP
-    llm_path = workspace_root / "local-llm-mcp"
-    if llm_path.exists():
-        config = MCPServerConfig(
-            name="local-llm-mcp",
-            command=["python", "-m", "local_llm_mcp.server"],
-            description="Local language model integration",
-            category="ai",
-            working_directory=str(llm_path),
-        )
-        mcp_registry.register_server(config)
+    # Local LLM MCP - commented out as not needed for smart home devices
+    # llm_path = workspace_root / "local-llm-mcp"
+    # if llm_path.exists():
+    #     config = MCPServerConfig(
+    #         name="local-llm-mcp",
+    #         command=["python", "-m", "local_llm_mcp.server"],
+    #         description="Local language model integration",
+    #         category="ai",
+    #         working_directory=str(llm_path),
+    #     )
+    #     mcp_registry.register_server(config)
 
     logger.info(f"Registered {len(mcp_registry.servers)} MCP servers")
