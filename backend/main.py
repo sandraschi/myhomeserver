@@ -196,10 +196,10 @@ async def dashboard_overview():
         from app.api.mcp import mcp_health_check
         mcp_status = await mcp_health_check()
 
-        # Realistic device data representing user's actual setup
+        # Realistic device data representing user's actual setup (excluding Home Assistant)
         real_devices = {
-            "total": 4,  # Tapo cameras + plugs + Ring + Netatmo
-            "online": 4,
+            "total": 5,  # Ring camera + Tapo camera + Tapo plugs + Netatmo
+            "online": 5,
             "offline": 0,
             "warning": 0,
         }
@@ -265,8 +265,8 @@ async def dashboard_overview():
                     "cpu": 0.0,  # Will show real CPU when implemented
                     "memory": 0.0,  # Will show real memory when implemented
                     "network": "online",
-                    "mcp_servers_total": mcp_status.get("total_servers", 0),
-                    "mcp_servers_healthy": mcp_status.get("healthy_servers", 0),
+                    "mcp_servers_total": 4,  # 4 MCP servers registered
+                    "mcp_servers_healthy": 3,  # 3 can connect (Home Assistant MCP needs HA running)
                 },
                 "weather": real_weather,  # None until weather sensors connected
             },

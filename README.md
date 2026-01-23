@@ -13,7 +13,7 @@ MyHomeServer is a comprehensive home automation control center that provides a u
 - **⚡ Energy Monitoring**: Tapo smart plugs (TV: 85W, Computer: 146W) with usage tracking
 - **🌤️ Weather Integration**: Netatmo weather station showing Vienna conditions (8.5°C, light snow)
 - **🔔 Security Systems**: Ring front door with motion detection and event history
-- **🏠 Smart Home Hub**: Integrated device management across all connected systems
+- **🏠 Smart Home Hub**: Integrated device management (Home Assistant integration pending)
 - **🎨 Lighting Control**: Smart lighting effects and control (when lighting devices added)
 - **🤖 AI Integration**: Local LLM for automation (when AI services configured)
 - **🔧 MCP Client Bridge**: Connect to any MCP server via stdio JSON-RPC
@@ -110,7 +110,7 @@ MyHomeServer integrates with multiple MCP servers for comprehensive smart home c
 | **Tapo Camera MCP** | Cameras & Energy | `tapo-camera-mcp` | 7778-7780 |
 | **Netatmo Weather MCP** | Weather & Sensors | `netatmo-weather-mcp` | 7781 |
 | **Ring MCP** | Security Systems | `ring-mcp` | 7782 |
-| **Home Assistant MCP** | Smart Home Hub (Nest) | `home-assistant-mcp` | 7783 |
+| **Home Assistant MCP** | Smart Home Hub (Nest) | `home-assistant-mcp` | 7783 *(HA not installed)* |
 | **Local LLM MCP** | AI Intelligence | `local-llm-mcp` | 7784 |
 
 ### Unified API Endpoints
