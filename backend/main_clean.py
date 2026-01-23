@@ -69,34 +69,26 @@ async def get_dashboard():
         events = await get_events_from_mcp()
 
         return {
-            "success": True,
-            "data": {
-                "devices": devices,
-                "weather": weather,
-                "recent_events": events,
-                "system_status": {
-                    "mcp_servers_total": len(mcp_registry.servers),
-                    "mcp_servers_healthy": await get_healthy_mcp_count(),
-                    "backend_status": "online"
-                }
-            },
-            "timestamp": datetime.now().isoformat()
+            "devices": devices,
+            "weather": weather,
+            "recent_events": events,
+            "system_status": {
+                "mcp_servers_total": len(mcp_registry.servers),
+                "mcp_servers_healthy": await get_healthy_mcp_count(),
+                "backend_status": "online"
+            }
         }
     except Exception as e:
         logger.error(f"Error getting dashboard data: {e}")
         return {
-            "success": True,
-            "data": {
-                "devices": {"total": 0, "online": 0, "offline": 0, "warning": 0},
-                "weather": None,
-                "recent_events": [],
-                "system_status": {
-                    "mcp_servers_total": len(mcp_registry.servers),
-                    "mcp_servers_healthy": 0,
-                    "backend_status": "error"
-                }
-            },
-            "timestamp": datetime.now().isoformat()
+            "devices": {"total": 0, "online": 0, "offline": 0, "warning": 0},
+            "weather": None,
+            "recent_events": [],
+            "system_status": {
+                "mcp_servers_total": len(mcp_registry.servers),
+                "mcp_servers_healthy": 0,
+                "backend_status": "error"
+            }
         }
 
 
@@ -105,10 +97,10 @@ async def get_devices():
     """Get all devices from MCP servers only"""
     try:
         devices = await get_devices_from_mcp()
-        return {"success": True, "data": {"devices": devices, "total": len(devices)}}
+        return {"devices": devices}
     except Exception as e:
         logger.error(f"Error getting devices: {e}")
-        return {"success": True, "data": {"devices": [], "total": 0}}
+        return {"devices": []}
 
 
 # Helper functions to get data from MCP servers
