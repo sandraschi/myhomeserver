@@ -56,7 +56,7 @@ class MCPProtocolError(MCPClientError):
 
 class MCPClient:
     """
-    MCP Client that communicates with MCP servers via stdio JSON-RPC.
+    MCP Client that communicates with MCP servers via HTTP JSON-RPC.
 
     This implements the full MCP protocol including:
     - initialize: Server initialization and capability negotiation
@@ -69,13 +69,16 @@ class MCPClient:
     """
 
     def __init__(self, server_command: List[str], server_name: str = "unknown",
-                 working_directory: Optional[str] = None, environment: Optional[Dict[str, str]] = None):
+                 working_directory: Optional[str] = None, environment: Optional[Dict[str, str]] = None,
+                 http_url: Optional[str] = None):
         self.server_command = server_command
         self.server_name = server_name
         self.working_directory = working_directory
         self.environment = environment or {}
+        self.http_url = http_url  # HTTP endpoint URL
         self.process: Optional[asyncio.subprocess.Process] = None
         self.initialized = False
+        self.initialization_failed = False  # Track if initialization has failed
         self.server_info: Optional[Dict[str, Any]] = None
         self.available_tools: List[MCPTool] = []
         self.available_resources: List[MCPResource] = []
@@ -93,6 +96,11 @@ class MCPClient:
     async def start_server(self) -> None:
         """Start the MCP server process."""
         try:
+            if self.http_url:
+                # HTTP-based connection - server should already be running
+                logger.info(f"Using HTTP MCP server at: {self.http_url}")
+                return
+
             # Use working directory if specified
             cwd = self.working_directory or os.getcwd()
 
@@ -114,7 +122,25 @@ class MCPClient:
                     # Prepend the server src directory to PYTHONPATH for higher priority
                     env["PYTHONPATH"] = f"{str(server_src)}:{env['PYTHONPATH']}"
 
-            # Add server-specific environment variables
+            # Start the subprocess with proper async handling
+            self.process = await asyncio.create_subprocess_exec(
+                *self.server_command,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+                cwd=cwd
+            )
+
+            logger.info(f"MCP server started successfully with PID: {self.process.pid}")
+
+            # Start background tasks to handle I/O
+            self._stdout_task = asyncio.create_task(self._read_stdout_lines())
+            self._stderr_task = asyncio.create_task(self._read_stderr())
+
+        except Exception as e:
+            logger.error(f"Failed to start MCP server {self.server_name}: {e}")
+            raise
             env.update(self.environment)
 
             logger.info(f"MCP server PYTHONPATH: {env.get('PYTHONPATH', 'NOT SET')}")
@@ -202,13 +228,14 @@ class MCPClient:
             logger.info(f"Starting MCP handshake with {self.server_name}")
 
             # Send initialize request
-            logger.info(f"Sending initialize request to {self.server_name}")
+            logger.info(f"[MCP DEBUG] Sending initialize request to {self.server_name}")
             result = await self._send_request("initialize", {
-                "protocolVersion": "2024-11-05",
+                "protocolVersion": "2025-11-25",
                 "capabilities": {
-                    "tools": {},
-                    "resources": {},
-                    "prompts": {}
+                    "roots": {
+                        "listChanged": True
+                    },
+                    "sampling": {}
                 },
                 "clientInfo": {
                     "name": "myhomeserver-mcp-client",
@@ -216,12 +243,26 @@ class MCPClient:
                 }
             })
 
+            # Check if initialize timed out
+            if result is None:
+                logger.error(f"[MCP DEBUG] Initialize request timed out for {self.server_name}")
+                self.initialization_failed = True
+                return
+
+            logger.info(f"[MCP DEBUG] Received initialize response from {self.server_name}: {result}")
             self.server_info = result
             self.initialized = True
             logger.info(f"MCP server {self.server_name} initialized successfully")
 
+            # Send initialized notification to complete handshake
+            logger.info(f"[MCP DEBUG] Sending initialized notification to {self.server_name}")
+            try:
+                await self._send_notification("notifications/initialized", {})
+            except Exception as e:
+                logger.warning(f"[MCP DEBUG] Failed to send initialized notification to {self.server_name}: {e}")
+
             # Cache available capabilities
-            logger.info(f"Caching capabilities for {self.server_name}")
+            logger.info(f"[MCP DEBUG] Caching capabilities for {self.server_name}")
             await self._cache_capabilities()
             logger.info(f"MCP handshake complete for {self.server_name}: tools={len(self.available_tools)}, resources={len(self.available_resources)}, prompts={len(self.available_prompts)}")
 
@@ -229,6 +270,8 @@ class MCPClient:
 
         except Exception as e:
             logger.error(f"Failed MCP handshake with {self.server_name}: {e}")
+            import traceback
+            logger.error(f"Handshake traceback: {traceback.format_exc()}")
             raise MCPClientError(f"Initialization failed: {e}")
 
     async def _cache_capabilities(self) -> None:
@@ -279,13 +322,13 @@ class MCPClient:
 
     async def list_tools(self) -> List[MCPTool]:
         """List available tools."""
-        if not self.initialized:
+        if not self.initialized and not self.initialization_failed:
             await self.initialize()
         return self.available_tools
 
     async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
         """Call a tool by name."""
-        if not self.initialized:
+        if not self.initialized and not self.initialization_failed:
             await self.initialize()
 
         logger.info(f"Calling tool {tool_name} on {self.server_name}")
@@ -299,7 +342,7 @@ class MCPClient:
 
     async def list_resources(self) -> List[MCPResource]:
         """List available resources."""
-        if not self.initialized:
+        if not self.initialized and not self.initialization_failed:
             await self.initialize()
         return self.available_resources
 
@@ -329,8 +372,69 @@ class MCPClient:
         result = await self._send_request("prompts/get", params)
         return result.get("description", "")
 
+    async def _send_notification(self, method: str, params: Dict[str, Any]) -> None:
+        """Send a JSON-RPC notification (no response expected)."""
+        if not self.process or not self.process.stdin:
+            raise MCPProtocolError("MCP server not connected")
+
+        notification = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params
+        }
+
+        # Send notification to stdin
+        notification_json = json.dumps(notification) + "\n"
+        logger.debug(f"[MCP DEBUG] Sending notification to {self.server_name}: {method}")
+
+        await asyncio.to_thread(self.process.stdin.write, notification_json.encode())
+        await asyncio.to_thread(self.process.stdin.flush)
+        logger.debug(f"[MCP DEBUG] Notification sent to {self.server_name}")
+
     async def _send_request(self, method: str, params: Dict[str, Any]) -> Any:
         """Send a JSON-RPC request and wait for response."""
+        if self.http_url:
+            # HTTP-based communication
+            return await self._send_http_request(method, params)
+        else:
+            # Stdio-based communication
+            return await self._send_stdio_request(method, params)
+
+    async def _send_http_request(self, method: str, params: Dict[str, Any]) -> Any:
+        """Send a JSON-RPC request via HTTP."""
+        request_id = self.next_id
+        self.next_id += 1
+
+        request = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": method,
+            "params": params
+        }
+
+        logger.info(f"[MCP HTTP] Sending request to {self.server_name} at {self.http_url}: {method}")
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    self.http_url,
+                    json=request,
+                    headers={"Content-Type": "application/json"}
+                )
+
+                if response.status_code != 200:
+                    raise MCPProtocolError(f"HTTP {response.status_code}: {response.text}")
+
+                result = response.json()
+                logger.info(f"[MCP HTTP] ✅ Received response from {self.server_name}: {result}")
+                return result
+
+        except Exception as e:
+            logger.error(f"[MCP HTTP] Failed to send HTTP request to {self.server_name}: {e}")
+            raise MCPProtocolError(f"HTTP request failed: {e}")
+
+    async def _send_stdio_request(self, method: str, params: Dict[str, Any]) -> Any:
+        """Send a JSON-RPC request via stdio."""
         if not self.process or not self.process.stdin:
             raise MCPProtocolError("MCP server not connected")
 
@@ -348,21 +452,38 @@ class MCPClient:
         future = asyncio.Future()
         self.pending_requests[request_id] = future
 
-        # Send request to stdin in a thread
+        # Send request to stdin
         request_json = json.dumps(request) + "\n"
-        await asyncio.to_thread(self.process.stdin.write, request_json.encode())
-        await asyncio.to_thread(self.process.stdin.flush)
+        logger.info(f"[MCP DEBUG] Sending request to {self.server_name}: {request_json.strip()}")
 
-        logger.debug(f"Sent MCP request: {method} (id: {request_id})")
+        try:
+            self.process.stdin.write(request_json.encode())
+            await self.process.stdin.drain()
+            logger.info(f"[MCP DEBUG] Request sent successfully to {self.server_name}")
+        except Exception as e:
+            logger.error(f"[MCP DEBUG] Failed to write to {self.server_name} stdin: {e}")
+            del self.pending_requests[request_id]
+            raise
 
         # Wait for response with timeout
         try:
-            response = await asyncio.wait_for(future, timeout=30.0)
+            logger.info(f"[MCP DEBUG] Waiting for response from {self.server_name} (id: {request_id})")
+            response = await asyncio.wait_for(future, timeout=10.0)
+            logger.info(f"[MCP DEBUG] ✅ Received response from {self.server_name} (id: {request_id}): {response}")
             return response
         except asyncio.TimeoutError:
+            logger.error(f"[MCP DEBUG] ❌ Request timeout for {self.server_name} method {method} (id: {request_id})")
+
             # Clean up pending request
             del self.pending_requests[request_id]
-            raise MCPProtocolError(f"Request timeout for method {method}")
+
+            # Don't crash the backend - just log and return None for initialize
+            if method == "initialize":
+                logger.error(f"[MCP DEBUG] Initialize request timed out for {self.server_name}")
+                self.initialization_failed = True
+                return None
+            else:
+                raise MCPProtocolError(f"Request timeout for method {method}")
 
     async def _read_stdout_lines(self) -> None:
         """Background task to read JSON-RPC responses from stdout."""
@@ -370,18 +491,17 @@ class MCPClient:
             return
 
         try:
-            import io
-            # Use TextIOWrapper for line reading
-            stdout_text = io.TextIOWrapper(self.process.stdout, encoding='utf-8', errors='replace')
-
             while True:
-                line = await asyncio.to_thread(stdout_text.readline)
+                # Read a line from stdout
+                line = await self.process.stdout.readline()
                 if not line:
                     break
 
-                line_str = line.strip()
+                line_str = line.decode('utf-8', errors='replace').strip()
                 if not line_str:
                     continue
+
+                logger.debug(f"[MCP DEBUG] Received line from {self.server_name}: {line_str}")
 
                 try:
                     response = json.loads(line_str)
@@ -412,11 +532,21 @@ class MCPClient:
 
         try:
             return_code = await self.process.wait()
-            logger.error(f"MCP server {self.server_name} exited with code: {return_code}")
-            print(f"MCP server {self.server_name} exited with code: {return_code}")
+            logger.error(f"[MCP DEBUG] MCP server {self.server_name} exited with code: {return_code}")
+            print(f"[MCP DEBUG] MCP server {self.server_name} exited with code: {return_code}")
+
+            # Try to read any remaining stderr output
+            try:
+                remaining_stderr = await asyncio.to_thread(self._read_stderr_sync)
+                if remaining_stderr:
+                    logger.error(f"[MCP DEBUG] Final stderr from {self.server_name}: {remaining_stderr}")
+                    print(f"[MCP DEBUG] Final stderr from {self.server_name}: {remaining_stderr}")
+            except Exception as e:
+                logger.error(f"[MCP DEBUG] Error reading final stderr from {self.server_name}: {e}")
+
         except Exception as e:
-            logger.error(f"Error monitoring MCP server {self.server_name}: {e}")
-            print(f"Error monitoring MCP server {self.server_name}: {e}")
+            logger.error(f"[MCP DEBUG] Error monitoring MCP server {self.server_name}: {e}")
+            print(f"[MCP DEBUG] Error monitoring MCP server {self.server_name}: {e}")
 
     async def _read_stderr(self) -> None:
         """Background task to read stderr for debugging."""
@@ -485,10 +615,21 @@ class MCPClientManager:
                 config["command"],
                 server_name,
                 working_directory=config.get("working_directory"),
-                environment=config.get("environment", {})
+                environment=config.get("environment", {}),
+                http_url=config.get("http_url")
             )
             await client.start_server()
-            await client.initialize()
+
+            # Try to initialize, but handle failures gracefully
+            try:
+                await client.initialize()
+                logger.info(f"MCP server {server_name} initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize MCP server {server_name}: {e}")
+                # Still store the client but mark it as not initialized
+                # This allows the backend to continue running
+                client.initialized = False
+
             self.clients[server_name] = client
 
         return self.clients[server_name]

@@ -26,6 +26,7 @@ class MCPServerConfig:
     auto_start: bool = False
     environment: Optional[Dict[str, str]] = None
     working_directory: Optional[str] = None
+    http_url: Optional[str] = None
 
 
 class MCPServerRegistry:
@@ -310,7 +311,7 @@ async def initialize_mcp_registry() -> None:
     workspace_root = Path(__file__).parent.parent.parent.parent.parent
 
     # MCP servers registered and auto-started with proper configuration
-    # Tapo Camera MCP - auto-start with config from tapo-camera-mcp directory
+    # Tapo Camera MCP - auto-start with stdio connection
     tapo_path = workspace_root / "tapo-camera-mcp"
     if tapo_path.exists():
         config = MCPServerConfig(
@@ -323,7 +324,7 @@ async def initialize_mcp_registry() -> None:
         )
         mcp_registry.register_server(config)
 
-    # Ring MCP - auto-start with config from ring-mcp directory
+    # Ring MCP - auto-start with stdio connection
     ring_path = workspace_root / "ring-mcp"
     if ring_path.exists():
         config = MCPServerConfig(

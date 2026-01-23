@@ -2,6 +2,7 @@
 MyHomeServer API - Unified smart home automation via MCP servers.
 """
 
+import asyncio
 from datetime import datetime
 import logging
 from contextlib import asynccontextmanager
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Import MCP components
 from app.mcp.registry import initialize_mcp_registry, mcp_registry
+from app.mcp.client import mcp_manager
 from app.api.mcp import router as mcp_router
 
 # Simple logging setup
@@ -22,13 +24,21 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown."""
     # Startup
-    logger.info("Initializing MCP system...")
-    try:
-        await initialize_mcp_registry()
-        logger.info("MCP system initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize MCP system: {e}")
-        # Don't crash the app, just log the error
+    logger.info("Initializing MCP system in background...")
+
+    # Start MCP initialization in background to not block app startup
+    async def init_mcp_background():
+        try:
+            await initialize_mcp_registry()
+            # Start auto-start MCP servers (handle failures gracefully)
+            await mcp_registry.initialize_all_auto_start()
+            logger.info("MCP system initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize MCP system: {e}")
+            logger.warning("MCP system initialization failed, but backend will continue without MCP servers")
+
+    # Start MCP initialization without waiting for it
+    asyncio.create_task(init_mcp_background())
 
     yield
 

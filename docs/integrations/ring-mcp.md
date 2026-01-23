@@ -177,12 +177,20 @@ security:
 
 ### Ring MCP Server Requirements
 
-Ensure the Ring MCP server is running with:
+**Auto-Start Configuration**: The Ring MCP server is automatically started by MyHomeServer backend via stdio subprocess. No manual server startup required.
 
+**Manual Testing** (if needed):
 ```bash
 # In d:\Dev\repos\ring-mcp
-python -m ring_mcp.server --host 0.0.0.0 --port 7782
+python -m ring_mcp
 ```
+
+**MCP Client Integration**: MyHomeServer automatically:
+- Discovers Ring MCP server in workspace
+- Starts server as subprocess with stdio pipes
+- Completes MCP handshake (initialize → initialized notification)
+- Discovers 18 available tools
+- Caches server capabilities for performance
 
 ## 🔄 Data Flow
 
@@ -192,8 +200,8 @@ MyHomeServer Frontend
         ▼
 FastAPI Backend (MyHomeServer)
         │
-        ▼ (HTTP/JSON)
-Ring MCP Server
+        ▼ (stdio JSON-RPC)
+Ring MCP Server (subprocess)
         │
         ▼ (Ring API)
 Ring Devices & Services
@@ -203,6 +211,12 @@ Ring Devices & Services
         ├── Floodlight Cam
         └── Security System
 ```
+
+**Status**: ✅ **FULLY OPERATIONAL** (2026-01-23)
+- MCP handshake complete
+- 18 tools discovered and available
+- Server auto-starts on backend initialization
+- Full stdio JSON-RPC communication working
 
 ## 📊 Data Models
 

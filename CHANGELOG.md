@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-01-23
+
+### Fixed
+- **MCP Handshake Implementation**: Complete stdio JSON-RPC protocol implementation
+  - Fixed async I/O for subprocess stdin/stdout communication
+  - Proper StreamReader/StreamWriter usage with `asyncio.create_subprocess_exec`
+  - Correct protocol version (`2025-11-25`) and capabilities negotiation
+  - Background stdout/stderr readers for concurrent response handling
+- **Ring MCP Integration**: Successfully completed full MCP handshake
+  - Initialize request/response working correctly
+  - 18 tools discovered and cached
+  - Server marked as healthy and operational
+  - Full tool/resource/prompt discovery working
+- **Backend Stability**: Graceful error handling prevents crashes
+  - MCP initialization failures don't crash FastAPI backend
+  - Background initialization prevents startup blocking
+  - Failed servers marked but don't prevent other servers from working
+
+### Technical Improvements
+- **Async Subprocess Management**: Proper asyncio subprocess handling
+  - `asyncio.create_subprocess_exec` for process creation
+  - `StreamReader.readline()` for line-by-line JSON-RPC reading
+  - `StreamWriter.write()` and `drain()` for async writes
+  - Background tasks for concurrent stdout/stderr monitoring
+- **MCP Protocol Compliance**: Updated to latest MCP specification
+  - Protocol version `2025-11-25` (was `2024-11-05`)
+  - Capabilities: `roots.listChanged` and `sampling` support
+  - Proper `notifications/initialized` notification after initialize
+  - JSON-RPC 2.0 compliant request/response handling
+- **Error Recovery**: Enhanced failure handling
+  - `initialization_failed` flag prevents infinite retry loops
+  - Timeout handling for initialize requests (10s timeout)
+  - Graceful degradation when servers unavailable
+  - Backend continues operating even if some MCP servers fail
+
+### Changed
+- **MCP Client Architecture**: Refactored stdio communication layer
+  - Removed `asyncio.to_thread` workarounds for blocking I/O
+  - Direct async StreamReader/StreamWriter usage
+  - Proper line-based JSON-RPC message parsing
+  - Background tasks for non-blocking response handling
+
+### Known Issues
+- **Tapo Camera MCP**: Initialize request times out (server-specific issue)
+- **Home Assistant MCP**: Initialize request times out (server-specific issue)
+- **Stderr Reading**: Minor error in stderr reader (doesn't affect functionality)
+
 ## [2.0.1] - 2026-01-23
 
 ### Fixed

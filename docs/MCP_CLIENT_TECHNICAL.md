@@ -63,26 +63,30 @@ class MCPServerRegistry:
 ### Connection Establishment
 
 1. **Process Launch**: MCP server started as subprocess with stdin/stdout pipes
-2. **Stream Setup**: asyncio StreamReader/StreamWriter for JSON-RPC communication
+2. **Stream Setup**: Direct asyncio StreamReader/StreamWriter for JSON-RPC communication
 3. **Background Tasks**: Concurrent readers for responses and stderr logging
 
 ```python
-# Start MCP server process
+# Start MCP server process with async subprocess
 self.process = await asyncio.create_subprocess_exec(
     *self.server_command,
     stdin=asyncio.subprocess.PIPE,
     stdout=asyncio.subprocess.PIPE,
     stderr=asyncio.subprocess.PIPE,
-    env=env
+    env=env,
+    cwd=working_directory
 )
 
-# Setup stdio streams
-self.reader = asyncio.StreamReader()
-reader_protocol = asyncio.StreamReaderProtocol(self.reader)
-transport, _ = await asyncio.get_event_loop().connect_read_pipe(
-    lambda: reader_protocol, self.process.stdout
-)
+# Start background tasks for stdout/stderr reading
+self._stdout_task = asyncio.create_task(self._read_stdout_lines())
+self._stderr_task = asyncio.create_task(self._read_stderr())
 ```
+
+**Key Implementation Details:**
+- Uses `asyncio.create_subprocess_exec` for proper async subprocess handling
+- Direct access to `process.stdin` (StreamWriter) and `process.stdout` (StreamReader)
+- Background tasks read lines concurrently without blocking main event loop
+- Proper encoding handling with UTF-8 and error replacement
 
 ### JSON-RPC Protocol
 
@@ -122,31 +126,55 @@ Client                  Server
   │── initialize ────────▶│
   │◀── serverInfo ────────│
   │                       │
+  │── notifications/ ────▶│
+  │   initialized         │
+  │                       │
   │── tools/list ────────▶│
   │◀── toolList ──────────│
+  │                       │
+  │── resources/list ────▶│
+  │◀── resourceList ──────│
+  │                       │
+  │── prompts/list ──────▶│
+  │◀── promptList ────────│
   │                       │
   │── tools/call ────────▶│
   │◀── toolResult ────────│
   │                       │
 ```
 
+**Protocol Version**: `2025-11-25` (latest MCP specification)
+**Capabilities**: `{"roots": {"listChanged": true}, "sampling": {}}`
+
 ### Protocol Methods Implemented
 
 #### Core Protocol
-- `initialize` - Server capability negotiation
+- `initialize` - Server capability negotiation with protocol version `2025-11-25`
+  - Sends client capabilities: `roots.listChanged`, `sampling`
+  - Receives server capabilities and server info
+  - Caches server capabilities for future operations
+- `notifications/initialized` - Sent after successful initialize response
 - `shutdown` - Graceful server termination
 
 #### Tools API
 - `tools/list` - Discover available tools
+  - Returns list of all available tools with schemas
+  - Cached after initialization for performance
 - `tools/call` - Execute tools with parameters
+  - Validates tool exists before calling
+  - Returns tool execution results
 
 #### Resources API
 - `resources/list` - Discover available resources
+  - Returns list of available resource URIs
 - `resources/read` - Read resource content
+  - Fetches resource data by URI
 
 #### Prompts API
 - `prompts/list` - Discover available prompts
+  - Returns list of available prompt templates
 - `prompts/get` - Retrieve prompt content
+  - Gets prompt with arguments filled in
 
 ## Auto-Discovery System
 
@@ -270,23 +298,31 @@ class MCPProtocolError(MCPClientError):
 ### Lifecycle Management
 
 1. **Server Start**:
-   - Launch subprocess with stdio pipes
-   - Setup asyncio streams
-   - Start background readers
+   - Launch subprocess with `asyncio.create_subprocess_exec`
+   - Setup stdin/stdout/stderr pipes
+   - Start background tasks for stdout/stderr reading
+   - Log process PID for monitoring
 
 2. **Initialization**:
-   - Send `initialize` request
-   - Cache server capabilities
-   - Mark as ready
+   - Send `initialize` request with protocol version `2025-11-25`
+   - Wait for initialize response (10s timeout)
+   - Cache server capabilities and server info
+   - Send `notifications/initialized` notification
+   - Discover tools, resources, and prompts
+   - Mark as initialized and ready
 
 3. **Operation**:
-   - Route tool/resource calls via JSON-RPC
-   - Handle responses and errors
+   - Route tool/resource/prompt calls via JSON-RPC
+   - Handle responses asynchronously via pending request futures
+   - Parse JSON-RPC responses line-by-line from stdout
+   - Handle errors gracefully with proper error messages
 
 4. **Shutdown**:
-   - Send termination signal
+   - Cancel background reading tasks
+   - Send termination signal to process
+   - Wait for process to exit gracefully
    - Close streams and pipes
-   - Cleanup resources
+   - Cleanup all resources
 
 ### Health Monitoring
 
