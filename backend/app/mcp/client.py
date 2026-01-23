@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import subprocess
 import sys
 import uuid
 from dataclasses import dataclass
@@ -123,33 +124,25 @@ class MCPClient:
             logger.info(f"Environment PYTHONPATH: {env.get('PYTHONPATH', 'NOT SET')}")
 
             try:
-                # For MCP servers, we need stdin/stdout pipes for stdio communication
-                # But for testing, we might not need stdin
-                stdin_pipe = asyncio.subprocess.PIPE if "stdio" in str(self.server_command) or "mcp" in str(self.server_command) else None
+                # Use synchronous subprocess in a thread executor to avoid asyncio event loop issues
+                logger.info(f"Starting MCP server process in thread executor...")
 
-                # Try without cwd first to see if that's the issue
-                logger.info(f"Trying subprocess creation without cwd...")
-                try:
-                    self.process = await asyncio.create_subprocess_exec(
-                        *self.server_command,
-                        stdin=stdin_pipe,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE,
-                        env=env
-                    )
-                    logger.info(f"Subprocess created successfully without cwd, PID: {self.process.pid}")
-                except Exception as e_no_cwd:
-                    logger.warning(f"Failed without cwd: {type(e_no_cwd).__name__}: {e_no_cwd}, trying with cwd...")
-                    # If that fails, try with cwd
-                    self.process = await asyncio.create_subprocess_exec(
-                        *self.server_command,
-                        stdin=stdin_pipe,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE,
-                        env=env,
-                        cwd=cwd
-                    )
-                    logger.info(f"Subprocess created successfully with cwd, PID: {self.process.pid}")
+                # For MCP servers, we need pipes for stdio communication
+                stdin_setting = subprocess.PIPE if "stdio" in str(self.server_command) or "mcp" in str(self.server_command) else None
+
+                # Run subprocess creation in a thread to avoid asyncio event loop issues
+                self.process = await asyncio.to_thread(
+                    subprocess.Popen,
+                    self.server_command,
+                    stdin=stdin_setting,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    env=env,
+                    cwd=cwd,
+                    text=False  # Use binary mode
+                )
+
+                logger.info(f"Subprocess created successfully, PID: {self.process.pid}")
 
             except Exception as e:
                 logger.error(f"Failed to create subprocess: {type(e).__name__}: {e}")
@@ -189,13 +182,14 @@ class MCPClient:
 
         if self.process:
             try:
+                # Use thread executor for synchronous operations
                 self.process.terminate()
-                await asyncio.wait_for(self.process.wait(), timeout=5.0)
+                await asyncio.to_thread(self.process.wait, timeout=5.0)
                 logger.info(f"MCP server {self.server_name} stopped")
-            except asyncio.TimeoutError:
+            except subprocess.TimeoutExpired:
                 logger.warning(f"Force killing MCP server {self.server_name}")
                 self.process.kill()
-                await self.process.wait()
+                await asyncio.to_thread(self.process.wait)
             except Exception as e:
                 logger.error(f"Error stopping MCP server {self.server_name}: {e}")
 
@@ -354,10 +348,10 @@ class MCPClient:
         future = asyncio.Future()
         self.pending_requests[request_id] = future
 
-        # Send request to stdin
+        # Send request to stdin in a thread
         request_json = json.dumps(request) + "\n"
-        self.process.stdin.write(request_json.encode())
-        await self.process.stdin.drain()
+        await asyncio.to_thread(self.process.stdin.write, request_json.encode())
+        await asyncio.to_thread(self.process.stdin.flush)
 
         logger.debug(f"Sent MCP request: {method} (id: {request_id})")
 
@@ -376,13 +370,16 @@ class MCPClient:
             return
 
         try:
+            import io
+            # Use TextIOWrapper for line reading
+            stdout_text = io.TextIOWrapper(self.process.stdout, encoding='utf-8', errors='replace')
+
             while True:
-                # Read line from stdout
-                line = await self.process.stdout.readline()
+                line = await asyncio.to_thread(stdout_text.readline)
                 if not line:
                     break
 
-                line_str = line.decode().strip()
+                line_str = line.strip()
                 if not line_str:
                     continue
 
@@ -427,12 +424,15 @@ class MCPClient:
             return
 
         try:
+            import io
+            stderr_text = io.TextIOWrapper(self.process.stderr, encoding='utf-8', errors='replace')
+
             while True:
-                line = await self.process.stderr.readline()
+                line = await asyncio.to_thread(stderr_text.readline)
                 if not line:
                     break
 
-                line_str = line.decode().strip()
+                line_str = line.strip()
                 if line_str:
                     logger.error(f"MCP server {self.server_name} stderr: {line_str}")
                     # Also print to stdout for immediate visibility
