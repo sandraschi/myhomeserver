@@ -9,16 +9,16 @@ MyHomeServer is a comprehensive home automation control center that provides a u
 ## ✨ Features
 
 ### Core Functionality
-- **📹 Camera Management**: Live camera feeds, PTZ controls, recording management
-- **⚡ Energy Monitoring**: Smart plug control, energy analytics, cost tracking
-- **🌤️ Weather Integration**: Local weather + Netatmo sensor data
-- **🔔 Security Systems**: Ring doorbell, motion detection, event history
-- **🏠 Smart Home Hub**: Nest devices, Home Assistant integration
-- **🎨 Lighting Control**: Smart lighting effects, RGB control (Tapo lightstrip + Philips Hue)
-- **🤖 AI Integration**: Local LLM for smart automation and insights
+- **📹 Camera Management**: Live camera feeds, PTZ controls, recording management (when connected)
+- **⚡ Energy Monitoring**: Smart plug control, energy analytics, cost tracking (when devices added)
+- **🌤️ Weather Integration**: Local weather + sensor data (when sensors connected)
+- **🔔 Security Systems**: Doorbell, motion detection, event history (when security devices added)
+- **🏠 Smart Home Hub**: Smart home device integration (when hubs connected)
+- **🎨 Lighting Control**: Smart lighting effects and control (when lighting devices added)
+- **🤖 AI Integration**: Local LLM for automation (when AI services configured)
 - **🔧 MCP Client Bridge**: Connect to any MCP server via stdio JSON-RPC
-- **🔍 Auto-Discovery**: Automatically finds and registers 50+ MCP servers
-- **🌐 Universal Integration**: HTTP API bridge to arbitrary MCP servers
+- **🔍 Auto-Discovery**: Automatically finds and registers available MCP servers
+- **🌐 Universal Integration**: HTTP API bridge to MCP servers
 
 ### Technical Highlights
 - **Beautiful Dark UI**: Modern, professional dark theme designed for 24/7 monitoring

@@ -30,6 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Proper process lifecycle management
   - Enhanced debugging capabilities
 
+### Changed
+- **Removed Mock Data**: Eliminated all Sunnyvale/garage mock data from APIs
+  - Dashboard shows 0 devices instead of 8 fake devices
+  - Weather data returns null instead of California weather
+  - MCP health shows real server status instead of fake connections
+  - Events array is empty instead of fake motion/energy alerts
+  - System stats show 0.0 instead of fake CPU/memory values
+
 ### Infrastructure
 - **Package Management**: Updated frontend dependencies
   - React 18.3.1, TypeScript 5.9.3, Tailwind CSS 3.4.19

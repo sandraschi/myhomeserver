@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
-from .client import mcp_manager
+from .client import mcp_manager, MCPClient
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +239,14 @@ class MCPServerRegistry:
     def register_server(self, config: MCPServerConfig) -> None:
         """Register an MCP server manually."""
         self.servers[config.name] = config
+        # Also register with the MCP manager
+        mcp_manager.register_server(
+            config.name,
+            config.command,
+            description=config.description,
+            category=config.category,
+            working_directory=config.working_directory
+        )
         logger.info(f"Registered MCP server: {config.name}")
 
     def unregister_server(self, name: str) -> None:
@@ -304,56 +312,61 @@ async def initialize_mcp_registry() -> None:
     # Tapo Camera MCP
     tapo_path = workspace_root / "tapo-camera-mcp"
     if tapo_path.exists():
-        mcp_registry.register_server(MCPServerConfig(
+        config = MCPServerConfig(
             name="tapo-camera-mcp",
-            command=["python", "-m", "tapo_camera_mcp.server"],
+            command=["python", "-m", "tapo_camera_mcp.cli_v2", "serve"],
             description="Tapo camera and smart device control",
             category="camera",
             working_directory=str(tapo_path),
-        ))
+        )
+        mcp_registry.register_server(config)
 
     # Ring MCP
     ring_path = workspace_root / "ring-mcp"
     if ring_path.exists():
-        mcp_registry.register_server(MCPServerConfig(
+        config = MCPServerConfig(
             name="ring-mcp",
             command=["python", "-m", "ring_mcp.server"],
             description="Ring doorbell and security system",
             category="security",
             working_directory=str(ring_path),
-        ))
+        )
+        mcp_registry.register_server(config)
 
     # Home Assistant MCP
     ha_path = workspace_root / "home-assistant-mcp"
     if ha_path.exists():
-        mcp_registry.register_server(MCPServerConfig(
+        config = MCPServerConfig(
             name="home-assistant-mcp",
             command=["python", "-m", "home_assistant_mcp.server"],
             description="Home Assistant smart home integration",
             category="home",
             working_directory=str(ha_path),
-        ))
+        )
+        mcp_registry.register_server(config)
 
     # Netatmo MCP
     netatmo_path = workspace_root / "netatmo-weather-mcp"
     if netatmo_path.exists():
-        mcp_registry.register_server(MCPServerConfig(
+        config = MCPServerConfig(
             name="netatmo-weather-mcp",
             command=["python", "-m", "netatmo_weather_mcp.server"],
             description="Netatmo weather sensors",
             category="weather",
             working_directory=str(netatmo_path),
-        ))
+        )
+        mcp_registry.register_server(config)
 
     # Local LLM MCP
     llm_path = workspace_root / "local-llm-mcp"
     if llm_path.exists():
-        mcp_registry.register_server(MCPServerConfig(
+        config = MCPServerConfig(
             name="local-llm-mcp",
             command=["python", "-m", "local_llm_mcp.server"],
             description="Local language model integration",
             category="ai",
             working_directory=str(llm_path),
-        ))
+        )
+        mcp_registry.register_server(config)
 
     logger.info(f"Registered {len(mcp_registry.servers)} MCP servers")

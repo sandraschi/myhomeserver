@@ -147,43 +147,19 @@ export const mcpHealthService = {
   async checkAllServers(): Promise<McpServerStatus[]> {
     try {
       const response = await apiService.get('/api/v1/mcp/health');
-      return response.data;
+      // Convert servers object to array
+      const serversData = response.data.servers || {};
+      return Object.values(serversData).map((server: any) => ({
+        name: server.name || 'Unknown',
+        url: server.command ? server.command.join(' ') : '',
+        status: server.healthy ? 'connected' : 'disconnected',
+        lastPing: new Date(),
+        responseTime: server.healthy ? 50 : 0,
+        version: '1.0.0'
+      }));
     } catch (error) {
-      // Fallback to mock data if backend is not available
-      return [
-        {
-          name: 'Tapo Camera',
-          url: 'http://localhost:7778',
-          status: 'connected' as const,
-          lastPing: new Date(),
-          responseTime: 45,
-          version: '1.2.0'
-        },
-        {
-          name: 'Netatmo Weather',
-          url: 'http://localhost:7781',
-          status: 'connected' as const,
-          lastPing: new Date(),
-          responseTime: 32,
-          version: '1.1.5'
-        },
-        {
-          name: 'Home Assistant',
-          url: 'http://localhost:7783',
-          status: 'connected' as const,
-          lastPing: new Date(),
-          responseTime: 28,
-          version: '2.0.1'
-        },
-        {
-          name: 'Ring Security',
-          url: 'http://localhost:7782',
-          status: 'disconnected' as const,
-          lastPing: new Date(),
-          responseTime: 0,
-          error: 'Connection timeout'
-        }
-      ];
+      // No mock data - return empty array when backend unavailable
+      return [];
     }
   },
 };

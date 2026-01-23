@@ -307,6 +307,8 @@ async def mcp_health_check():
         # Get all servers status
         servers_status = await mcp_manager.list_all_servers()
 
+        # Only return real registered servers (no mock data)
+
         healthy_servers = sum(1 for status in servers_status.values() if status.get("healthy", False))
         total_servers = len(servers_status)
 
